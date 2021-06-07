@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 import codecs
 import os
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 DESCRIPTION = 'Simplificación de la conection a el API REST de Adquality en Python.'
 
 setup(
