@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: py-quality
+Version: 0.0.2
+Summary: Simplificación de la conection a el API REST de Adquality en Python.
+Home-page: UNKNOWN
+Author: Carlangastr
+License: UNKNOWN
+Description: UNKNOWN
+Keywords: python,adquality,sql,marketing,audience
+Platform: UNKNOWN
+Classifier: Development Status :: 1 - Planning
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: Unix
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: Microsoft :: Windows
+Description-Content-Type: text/markdown

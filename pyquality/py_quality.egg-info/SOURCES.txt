@@ -1,0 +1,9 @@
+README.md
+setup.py
+py_adquality/__init__.py
+py_adquality/pyquality.py
+py_quality.egg-info/PKG-INFO
+py_quality.egg-info/SOURCES.txt
+py_quality.egg-info/dependency_links.txt
+py_quality.egg-info/requires.txt
+py_quality.egg-info/top_level.txt
