@@ -195,6 +195,8 @@ class admetricks_api:
 
     my_dataframe.campaign_name = my_dataframe.campaign_name.apply(lambda x: fix_encoding(x))
     my_dataframe.campaign_tags = my_dataframe.campaign_tags.apply(lambda x: fix_encoding(x))
+    my_dataframe.website_sections = my_dataframe.website_sections.apply(lambda x: fix_encoding(x))
+    my_dataframe.brand = my_dataframe.brand.apply(lambda x: fix_encoding(x))
     
     return my_dataframe
 
