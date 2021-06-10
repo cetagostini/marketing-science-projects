@@ -1,3 +1,4 @@
 pandas
 ftfy
 requests
+unidecode

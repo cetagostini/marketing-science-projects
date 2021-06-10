@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: py-metricks
-Version: 0.0.2
+Version: 0.0.3
 Summary: Simplification of the connection to the Admetricks REST API in Python.
 Home-page: UNKNOWN
 Author: Carlangastr

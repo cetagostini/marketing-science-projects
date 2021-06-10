@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 import codecs
 import os
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 DESCRIPTION = 'Simplification of the connection to the Admetricks REST API in Python.'
 
 with open('english_readme.md', encoding='utf-8') as f:
