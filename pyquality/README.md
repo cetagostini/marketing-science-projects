@@ -4,7 +4,7 @@ Desarrollado por Carlos Trujillo, Marketing Scientist.
 
 ## Introduction
 
-Si formas parte del mundo del marketing seguramente has escuchado acerca de Admetricks, Comscore, Lotame o Adcuality. Herramientas que nos entregan datos
+Si formas parte del mundo del marketing seguramente has escuchado acerca de Admetricks, Comscore, Lotame o AdCuality. Herramientas que nos entregan datos
 los cuales podemos utilizar para realizar distintos tipos de estudios a muchos de los fenomenos a los cuales nos enfretamos en el este rubro.
 
 Cada día, la adopción de la tecnologia es más importante que nunca para poder llevar nuestro analisis un poco más allá de lo convencional.
@@ -17,7 +17,7 @@ resultados, con la poca información que existe en internet.
 Por ello, decidi iniciar pequeños proyectos donde estaré creando pseudo paquetes, para aquellos que estan en el mundo del marketing y la programación. Esperando
 poder acortar la curva de adaptación de algunos de los profesionales que nos encontramos aquí.
 
-El primer paquete en este proyecto es PyQuality, una simplificación de la conection a el API REST de Adquality en Python.
+El primer paquete en este proyecto es PyQuality, una simplificación de la conection a el API REST de AdCuality en Python.
 
 ¡Espero tu feedback!
 
@@ -29,9 +29,9 @@ from py_adquality.pyquality import adquality_reports
 ```
 
 Incialmente el paquete cuenta con dos metodos, donde cada uno devuelve un DataFrame. El metodo principal, genera un reporte en formato Pandas donde se ven todos
-los datos obtenidos por la API REST de Adquality.
+los datos obtenidos por la API REST de AdCuality.
 
-El segundo paquete obtiene todas las imagenes capturadas por Adquality dentro de un periodo determinado.
+El segundo paquete obtiene todas las imagenes capturadas por AdCuality dentro de un periodo determinado.
 
 ``` python
 
@@ -42,7 +42,7 @@ publishers = adquality.report_generator_soi(country = 'CO', report_type = 'publi
 #Report options "publishers", "formats", "advertisers", "industries", "sources" or "categories"
 ```
 
-Tambien puedes generar un reporte con todas las imagenes capturadas por Adquality.
+Tambien puedes generar un reporte con todas las imagenes capturadas por AdCuality.
 
 ``` python
 
