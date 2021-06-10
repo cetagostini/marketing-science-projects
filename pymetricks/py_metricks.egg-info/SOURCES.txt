@@ -1,0 +1,9 @@
+README.md
+setup.py
+py_admetricks/__init__.py
+py_admetricks/pymetricks.py
+py_metricks.egg-info/PKG-INFO
+py_metricks.egg-info/SOURCES.txt
+py_metricks.egg-info/dependency_links.txt
+py_metricks.egg-info/requires.txt
+py_metricks.egg-info/top_level.txt

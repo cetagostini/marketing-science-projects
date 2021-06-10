@@ -1,4 +1,4 @@
-# Marketing Science | Adcuality library
+# Marketing Science | Admetricks library
 
 Desarrollado por Carlos Trujillo, Marketing Scientist.
 
@@ -17,37 +17,38 @@ resultados, con la poca información que existe en internet.
 Por ello, decidi iniciar pequeños proyectos donde estaré creando pseudo paquetes, para aquellos que estan en el mundo del marketing y la programación. Esperando
 poder acortar la curva de adaptación de algunos de los profesionales que nos encontramos aquí.
 
-El primer paquete en este proyecto es PyQuality, una simplificación de la conection a el API REST de Adquality en Python.
+Este es mi segundo paquete en este proyecto. Les presento PyMetricks, una simplificación de la conection a el API REST de Admetricks en Python.
 
 ¡Espero tu feedback!
 
 ``` python
 
-pip install py_adquality
+pip install py_metricks
 
-from py_adquality.pyquality import adquality_reports
+from py_admetricks.pymetricks import admetricks_api
 ```
 
 Incialmente el paquete cuenta con dos metodos, donde cada uno devuelve un DataFrame. El metodo principal, genera un reporte en formato Pandas donde se ven todos
-los datos obtenidos por la API REST de Adquality.
-
-El segundo paquete obtiene todas las imagenes capturadas por Adquality dentro de un periodo determinado.
+los datos obtenidos por la API REST de Admetricks.
 
 ``` python
 
-adquality = reports(username = 'my_email_or_adquality_user', password = 'my_password')
-publishers = adquality.report_generator_soi(country = 'CO', report_type = 'publishers')
+admetricks = admetricks_api(username = 'your_mail@enterprise.com', password = 'admetricks_password')
+report = admetricks.reports_generator(country='chile', since_date='2021-05-31', device='mobile', ad_type='display')
+report.head(10)
 
-#You can also choose the methood "report_generator_sov"
-#Report options "publishers", "formats", "advertisers", "industries", "sources" or "categories"
+#country options 'chile','colombia','argentina','brasil','españa','peru','mexico','honduras','puerto rico','panama','uruguay','costa rica',
+#                 'guatemala','ecuador','venezuela','nicaragua','salvador','republica dominicana' or 'paraguay'
 ```
 
-Tambien puedes generar un reporte con todas las imagenes capturadas por Adquality.
+El segundo paquete obtiene todas las imagenes capturadas por Admetricks dentro de un periodo determinado, en el formato crudo, por tanto veran una captura completa
+de toda la pantalla y no solo del anuncio.
 
 ``` python
 
-adquality = reports(username = 'my_email_or_adquality_user', password = 'my_password')
-images = adquality.image_extractor(country = 'CO')
+admetricks = admetricks_api(username = 'your_mail@enterprise.com', password = 'admetricks_password')
+screenshots = admetricks.screenshots_data(country = 'chile', site = 'facebook', since_date = '2021-01-08', until_date = '2021-01-08')
+screenshots.head(10)
 ```
 
 Muy pronto se estaran añadiendo modulos de aprendizaje automatico para explotar la información que tenemos dentro de la plataforma.
