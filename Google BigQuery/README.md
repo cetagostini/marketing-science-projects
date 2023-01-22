@@ -1,25 +1,15 @@
-# Google marketing science projects
+# BigQuery ML for Marketing Science
+Welcome to my BigQuery ML for Marketing Science projects repository! Here, you'll find a collection of projects that show you how to use BigQuery ML to solve real-world marketing problems.
 
-Español:
+📊 The first practice in this repository is an introduction to BigQuery ML where we build a simple ARIMA model for time series forecasting. We will be showing how to use SQL to prepare data and use BigQuery ML to train and evaluate the model.
 
-Bienvenido a mis investigaciones dentro de Google BigQuery.
+🔎 The goal of this repository is to provide an easy way for marketing practitioners and researchers to use machine learning in BigQuery to improve their analysis and make data-driven decisions.
 
-Dentro del siguiente repositorios encontraras información que puede serte util si estas iniciando a abordar Google BigQuery.
+🤝 We would love for you to collaborate with us on these projects, so if you have any questions or ideas, please don't hesitate to reach out! We are open for contributions and we are looking forward to hearing from you!
 
-Si estas un poco más avanzado tambien podrás encontrar avances que he realizado aplicado los servicios de BigQuery ML en la nube, para resolver algunos
-de los problemas de marketing más comunes.
+📎 The colab projects links are: 
+- 
 
-¡No dudes en darme tu feedback, siempre estoy abierto a colaborar!
+🔥 More content is coming, stay tuned!
 
------
-
-English:
-
-Welcome to my investigations within Google BigQuery.
-
-Within the following repositories you will find information that may be useful if you are starting to address Google BigQuery.
-
-If you are a little more advanced, you will also be able to find advances that I have made applied the BigQuery ML services in the cloud, to solve some
-of the most common marketing problems.
-
-Do not hesitate to give me your feedback, I am always open to collaborate!
+Happy analyzing!
