@@ -12,8 +12,8 @@ Welcome to my Machine Learning for Marketing projects repository! Here, you'll f
 🔥 More content is coming, stay tuned!
 
 📎 The colab project links are:
-- [**App Sentiment Analysis**: ](https://github.com/carlangastr/marketing-science-projects/blob/main/Machine%20Learning/Natural%20language%20processing/Google_play_reviews_and_NLP_%5BLinkedIn_article%5D.ipynb)
-- [**Ad Feature Analysis**: ](https://github.com/carlangastr/marketing-science-projects/blob/main/Machine%20Learning/Predictive%20ads/predictive_ads_analytics_test.ipynb)
-- [**Project 3: Media Mix Modeling**: ](https://github.com/carlangastr/marketing-science-projects/blob/main/Machine%20Learning/Marketing%20media%20mix%20modeling/Marketing_Mix_Modeling_%5BLinkedin_Article%5D.ipynb)
+- [**App Sentiment Analysis**](https://github.com/carlangastr/marketing-science-projects/blob/main/Machine%20Learning/Natural%20language%20processing/Google_play_reviews_and_NLP_%5BLinkedIn_article%5D.ipynb)
+- [**Ad Feature Analysis**](https://github.com/carlangastr/marketing-science-projects/blob/main/Machine%20Learning/Predictive%20ads/predictive_ads_analytics_test.ipynb)
+- [**Project 3: Media Mix Modeling**](https://github.com/carlangastr/marketing-science-projects/blob/main/Machine%20Learning/Marketing%20media%20mix%20modeling/Marketing_Mix_Modeling_%5BLinkedin_Article%5D.ipynb)
 
 Happy analyzing!

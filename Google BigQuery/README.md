@@ -8,7 +8,7 @@ Welcome to my BigQuery ML for Marketing Science projects repository! Here, you'l
 🤝 We would love for you to collaborate with us on these projects, so if you have any questions or ideas, please don't hesitate to reach out! We are open for contributions and we are looking forward to hearing from you!
 
 📎 The colab projects links are: 
-- 
+- [**Introduction to BigQuery ML**](https://github.com/carlangastr/marketing-science-projects/blob/main/Google%20BigQuery/Introduction_to_bigquery_ML_on_Python_Carlos_Trujillo.ipynb)
 
 🔥 More content is coming, stay tuned!
 
