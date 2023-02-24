@@ -7,12 +7,12 @@ from prophet.utilities import regressor_coefficients
 from tabulate import tabulate
 from sklearn.metrics import r2_score, mean_absolute_error
 
-from tscausalinference.evaluators import mape
-
 import pandas as pd
 from pandas import DataFrame
 
 import logging
+
+from tscausalinference.evaluators import mape
 
 logger = logging.getLogger('cmdstanpy')
 logger.addHandler(logging.NullHandler())
