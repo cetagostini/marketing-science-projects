@@ -1,5 +1,3 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
-
 from prophet import Prophet
 
 from prophet.diagnostics import cross_validation
@@ -27,7 +25,6 @@ def synth_analysis(df: DataFrame = None,
                     seasonality: bool = True,
                     cross_validation_steps: int = 5
                     ):
-
     """
     A function to analyze a dataset using the Prophet library and provide evaluation metrics, response metrics and 
     intervention metrics. 
@@ -81,27 +78,6 @@ def synth_analysis(df: DataFrame = None,
     | regressor_2   |         -0.0133  |
     +---------------+------------------+
 
-    Pre-Intervention response metrics ->
-    +---------+-------+
-    | Metric  | Value |
-    +=========+=======+
-    | r2      |  0.73 |
-    +---------+-------+
-    | MAE     | 34.92 |
-    +---------+-------+
-    | MAPE (%)| 15.21 |
-    +---------+-------+
-
-    Intervention metrics ->
-    +------------------------+--------+
-    | Metric                 | Value  |
-    +========================+========+
-    | Actual cumulative      | 156874 |
-    +------------------------+--------+
-    | Predicted cumulative:  | 163998 |
-    +------------------------+--------+
-    | Difference             |  7124  |
-    +------------------------+--------+
     """
 
     if not isinstance(df, pd.DataFrame):
@@ -186,8 +162,20 @@ def synth_analysis(df: DataFrame = None,
     ['MAPE (%)', mape(y_pred = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)]
     ]
 
-    print('\nPre-Intervention response metrics ->')
-    print(tabulate(pre_int_metrics, headers=['Metric', 'Value'], tablefmt='grid'))
+    strings_info = """
++----------------------+
+Pre intervention metrics
++----------------------+
+{}
+    """
+
+    print(
+        strings_info.format(
+            tabulate(pre_int_metrics, 
+            headers=['Metric', 'Value'], 
+            tablefmt='pipe')
+        ).strip()
+    )
 
     int_metrics = [
     ['Actual cumulative', data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].y.sum()],
@@ -195,10 +183,5 @@ def synth_analysis(df: DataFrame = None,
     ['Difference', data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].point_effects.sum()],
     ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].yhat.sum() -1)*100]
     ]
-
-    print('\nIntervention response metrics ->')
-    print('Prediction Period {}'.format(prediction_period))
-    print('CI 95%: [{}, {}]'.format(data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].yhat_lower.sum(), data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].yhat_upper.sum()))
-    print(tabulate(int_metrics, headers=['Metric', 'Value'], tablefmt='grid'))
-
-    return data
+    
+    return data, pre_int_metrics, int_metrics

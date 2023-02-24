@@ -1,11 +1,14 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List, Union
 
+import sys, os, io
 from pandas import DataFrame
 import pandas as pd
 
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+from tabulate import tabulate
 
 from statsmodels.tsa.seasonal import seasonal_decompose
 
@@ -17,7 +20,7 @@ sns.set_context("paper")
 
 class tscausalinference:
     """
-    Time series causal inference using structural causal models (SCM) and a difference-in-differences (DiD) approach.
+   Time series causal inference using structural causal models (SCM) and a difference-in-differences (DiD) approach.
 
     Parameters
     ----------
@@ -49,8 +52,8 @@ class tscausalinference:
     """
 
     def __init__(self,
-        data: Union[np.array, DataFrame] = None,
-        intervention: Union[List[int], List[str], List[pd.Timestamp]] = None,
+        data: Union[np.array, DataFrame],
+        intervention: Union[List[int], List[str], List[pd.Timestamp]],
         regressors: list = [],
         alpha: float = 0.05,
         past_window: int = 5,
@@ -59,6 +62,8 @@ class tscausalinference:
         n_samples: int = 1500,
         cross_validation_steps: int = 5
         ):
+        """
+        """
 
         self.data = data
         self.intervention = intervention
@@ -70,12 +75,13 @@ class tscausalinference:
         self.n_samples = n_samples
         self.cross_validation_steps = cross_validation_steps
 
-        self.data = synth_analysis(df = data, 
-                    regressors = regressors, 
-                    intervention = intervention, 
-                    seasonality = seasonality,
-                    cross_validation_steps = cross_validation_steps
-                    )
+        self.data, self.pre_int_metrics, self.int_metrics = synth_analysis(
+            df = data, 
+            regressors = regressors, 
+            intervention = intervention, 
+            seasonality = seasonality,
+            cross_validation_steps = cross_validation_steps
+            )
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0],intervention[1])
         
         self.simulations = bootstrap_simulate(
@@ -96,11 +102,11 @@ class tscausalinference:
             No parameters are required.
         
         Raises
-        ------
+        -------
             No raises are defined.
         
         Returns
-        -------
+        --------
             No returns are defined, as the method simply generates a plot.
         """
         data = self.data
@@ -149,14 +155,15 @@ class tscausalinference:
 
     def plot_simulations(self, simulation_number: int = 10):
         """
-        The plot_simulations() method of tscausalinference class plots the distribution of the mean difference between the treatment and control group based on the bootstrap simulations generated in bootstrap_simulate(). The plot includes a histogram and a box plot of the simulated means.
+        The plot_simulations() method of tscausalinference class plots the distribution of the mean difference between the treatment and control group based on the bootstrap simulations generated in bootstrap_simulate(). 
+        The plot includes a histogram and a box plot of the simulated means.
 
         Parameters
         ----------
             Simulation_number (int): The number of simulations to plot. Default is 10.
         
         Raises
-        ------
+        -------
             ValueError: if simulation_number is greater than the number of simulations generated.
         """
         data = self.data
@@ -209,3 +216,125 @@ class tscausalinference:
 
         # Show the plot
         sns.despine()
+    
+    def summary(self):
+        """
+        Parameters
+        ----------
+            No parameters are required.
+        
+        Raises
+        -------
+            No raises are defined.
+        
+        Returns
+        --------
+            No returns are defined, as the method simply generates a overview.
+        """
+        data = self.data
+        
+        data['ds'] = pd.to_datetime(data['ds'])
+        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds', 'y']].set_index('ds')
+
+        decomposition_obj = seasonal_decompose(
+                    x = x_decomp, 
+                    model = 'additive'
+                    )
+        
+        std_res = decomposition_obj.resid.describe()['std']
+
+        if std_res < 0.2:
+            mde = 15
+            noise = 'low'
+        elif (std_res > 0.2) & (std_res <= 0.6):
+            mde = 21
+            noise = 'medium'
+        elif std_res > 0.6:
+            mde = 25
+            noise = 'high'
+        
+        if self.stadisticts[0] <= 0.01:
+            summary = """
+    Considerations
+    --------------
+    a) The STD of the residuals is {}. Meaning, the noise in your data is {}.
+    b) Based on this information, in order to be detectable your effect should be grater than {}%.
+    
+    Summary
+    -------
+    During the post-intervention period, the response variable had
+    an average value of approx. {}. By contrast, in the absence of an
+    intervention, we would have expected an average response of {}.
+    The 95% interval of this counterfactual prediction is {} to {}.
+    
+    The usual error of your model is {}%, the difference during the invervention period is {}%.
+    During intervention error growth {}%, suggesting some factor is impacting the quality of the model.
+
+    The probability of obtaining this effect by chance is very small
+    (After {} simulations Bootstrap probability p = {}).
+    This means the causal effect can be considered statistically
+    significant.
+            """
+        else:
+            summary = """
+    Considerations
+    --------------
+    a) The STD of the residuals is {}. Meaning, the noise in your data is {}.
+    b) Based on this information, in order to be detectable your effect should be grater than {}%.
+    
+    Summary
+    -------
+    During the intervention period, the response variable had
+    an average value of approx. {} By contrast, in the absence of an
+    intervention, we would have expected an average response of {}.
+    The 95% interval of this counterfactual prediction is {} to {}.
+    
+    The usual error of your model is {}%, the difference during the invervention period is {}%.
+    During intervention error was {}%, suggesting the model can explain well what should happen 
+    and the difference are not significant.
+
+    The probability of obtaining this effect by chance is not small
+    (After {} simulations Bootstrap probability p = {}).
+    This means the causal effect can not be considered statistically
+    significant.
+            """
+
+        print(
+            summary.format(
+                round(std_res,2),
+                noise,
+                mde,
+                round(data[(data.ds >= pd.to_datetime(self.intervention[0])) & (data.ds <= pd.to_datetime(self.intervention[1]))].y.mean(),2),
+                round(data[(data.ds >= pd.to_datetime(self.intervention[0])) & (data.ds <= pd.to_datetime(self.intervention[1]))].yhat.mean(),2),
+                round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_lower.mean(),2), 
+                round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_upper.mean(),2),
+                round(self.pre_int_metrics[2][1],2),
+                round(self.int_metrics[3][1],2),
+                round(self.int_metrics[3][1]/self.pre_int_metrics[2][1],2),
+                self.n_samples,
+                self.stadisticts[0]
+            )
+        )
+    
+    def summary_intervention(self):
+        data = self.data
+
+        strings_info = """
++-----------------------+-----------+
+      Pre intervention metrics
++-----------------------+-----------+
+{}
++-----------------------+-----------+
+      {}
+        """
+
+        print(
+            strings_info.format(
+                tabulate(self.int_metrics, 
+                headers=['Metric', 'Value'], 
+                tablefmt='pipe'),
+                'CI 95%: [{}, {}]'.format(
+                    round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_lower.sum(),2), 
+                    round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_upper.sum()),2)
+            ).strip()
+        )

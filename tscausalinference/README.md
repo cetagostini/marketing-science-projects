@@ -48,14 +48,23 @@ import pandas as pd
 # Load data
 df = pd.read_csv('mydata.csv')
 
-data = tscausalinference(data = df, 
-                    intervention = intervention, 
-                    regressors=[],
-                    seasonality = True,
-                    cross_validation_steps = 6)
+data = tscausalinference(data = df, intervention = intervention)
 
 data.plot_intervention()
 ```
 
-License
+## Extra documentation
+Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
+
+## Inspirational articles:
+1. [Bootstrap random walks](https://reader.elsevier.com/reader/sd/pii/S0304414915300247?token=0E54369709F75136F10874CA9318FB348A6B9ED117081D7607994EDB862C09E8F95AE336C38CD97AD7A2C50FF14A8708&originRegion=eu-west-1&originCreation=20230224195555)
+2. [Public Libs](https://github.com/lytics/impact)
+3. [Name](https://en.wikipedia.org/wiki/Random_walk)
+4. [A Nonparametric approach for multiple change point analysis](https://arxiv.org/pdf/1306.4933.pdf)
+5. [Causal Impact on python](https://www.youtube.com/watch?v=GTgZfCltMm8&t=272s)
+6. [Causal Inference Using Bayesian Structural Time-Series Models](https://towardsdatascience.com/causal-inference-using-bayesian-structural-time-series-models-ab1a3da45cd0)
+7. [Wikipedia](https://en.wikipedia.org/wiki/Random_walk)
+
+
+## License
 This project is licensed under the MIT License - see the LICENSE file for details.
