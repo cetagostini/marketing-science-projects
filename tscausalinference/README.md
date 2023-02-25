@@ -52,6 +52,52 @@ data = tscausalinference(data = df, intervention = intervention)
 
 data.plot_intervention()
 ```
+![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
+
+### Checking seasonal decomposition
+```python
+data = tscausalinference(data = df, intervention = intervention)
+
+data.seasonal_decompose()
+```
+![seasonal_decompose Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/seasonal_decompose.png)
+
+### Checking p-value, simulations & distributions
+```python
+data = tscausalinference(data = df, intervention = intervention)
+
+data.plot_simulations()
+```
+![plot_simulations Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/pvalue.png)
+
+### Customizing model
+```python
+data = tscausalinference(data = df, intervention = intervention, regressors = ['a','b'],
+                        alpha = 0.03, n_samples = 10000, cross_validation_steps = 15
+                        )
+
+data.summary()
+```
+```md
+    Considerations
+    --------------
+    a) The standard deviation of the residuals is 0.12762. This means that the noise in your data is low.
+    b) Based on this information, in order for your effect to be detectable, it should be greater than 15%.
+
+    Summary
+    -------
+    During the intervention period, the response variable had an average value of approximately 21.78. 
+    By contrast, in the absence of an intervention, we would have expected an average response of 19.15. 
+    The 95% confidence interval of this counterfactual prediction is 18.9 to 19.39.
+
+    The usual error of your model is 2.23%, while the difference during the intervention period is 13.77%. 
+    During the intervention, the error increase 6.18% (11.54 percentage points), suggesting some factor is impacting the quality of the model,
+    and that the differences significant.
+
+    The probability of obtaining this effect by chance is very small 
+    (after 1500 simulations, bootstrap probability p = 0.002). 
+    This means that the causal effect can be considered statistically significant.
+```
 
 ## Extra documentation
 Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.

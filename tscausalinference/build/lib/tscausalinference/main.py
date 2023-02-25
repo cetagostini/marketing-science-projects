@@ -1,7 +1,5 @@
 from typing import List, Union
-from statsmodels.tsa.seasonal import seasonal_decompose
 
-import sys, os, io
 from pandas import DataFrame
 import pandas as pd
 
@@ -61,8 +59,6 @@ class tscausalinference:
         n_samples: int = 1500,
         cross_validation_steps: int = 5
         ):
-        """
-        """
 
         self.data = data
         self.intervention = intervention
@@ -79,7 +75,8 @@ class tscausalinference:
             regressors = regressors, 
             intervention = intervention, 
             seasonality = seasonality,
-            cross_validation_steps = cross_validation_steps
+            cross_validation_steps = cross_validation_steps,
+            alpha = alpha
             )
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0],intervention[1])
         
@@ -107,7 +104,7 @@ class tscausalinference:
         --------
             No returns are defined, as the method simply generates a plot.
         """
-        data = self.data
+        data = self.data.copy()
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(15, 10))
 
         lineplot = sns.lineplot(x = 'ds', y = 'yhat', color = 'r', alpha=0.5, linestyle='--', ci=95,
@@ -164,7 +161,7 @@ class tscausalinference:
         -------
             ValueError: if simulation_number is greater than the number of simulations generated.
         """
-        data = self.data
+        data = self.data.copy()
 
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(18, 5))
         for i in range(simulation_number):#range(len(samples[0])):
@@ -172,7 +169,7 @@ class tscausalinference:
                         linewidth=0.5, alpha=0.45,
                         color = 'orange', legend = False, ax=axes[0])
 
-        sns.lineplot(x = 'ds', y = 'yhat', color = 'b',
+        sns.lineplot(x = 'ds', y = 'y', color = 'b',
                     err_kws={'linestyle': '--', 'hatch': '///', 'fc': 'none'}, ax=axes[0],
                     data = data[(data.ds <= pd.to_datetime(self.intervention[0]))],
                     linewidth=1, label='Training')
@@ -229,17 +226,11 @@ class tscausalinference:
         --------
             No returns are defined, as the method simply generates a overview.
         """
-        data = self.data
+        data = self.data.copy()
         
         data['ds'] = pd.to_datetime(data['ds'])
-        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds', 'y']].set_index('ds')
 
-        decomposition_obj = seasonal_decompose(
-                    x = x_decomp, 
-                    model = 'additive'
-                    )
-        
-        std_res = decomposition_obj.resid.describe()['std']
+        std_res = self.pre_int_metrics[3][1]
 
         if std_res < 0.2:
             mde = 15
@@ -265,7 +256,7 @@ class tscausalinference:
     The 95% confidence interval of this counterfactual prediction is {} to {}.
 
     The usual error of your model is {}%, while the difference during the intervention period is {}%. 
-    During the intervention, the error was {}%, suggesting some factor is impacting the quality of the model,
+    During the intervention, the error increase {}% ({} percentage points), suggesting some factor is impacting the quality of the model,
     and that the differences significant.
 
     The probability of obtaining this effect by chance is very small 
@@ -286,7 +277,7 @@ class tscausalinference:
     The 95% confidence interval of this counterfactual prediction is {} to {}.
 
     The usual error of your model is {}%, while the difference during the intervention period is {}%. 
-    During the intervention, the error was {}%, suggesting that the model can explain well what should happen,
+    During the intervention, the error increase {}% ({} percentage points), suggesting that the model can explain well what should happen,
     and that the differences are not significant.
 
     The probability of obtaining this effect by chance is not small 
@@ -296,7 +287,7 @@ class tscausalinference:
 
         print(
             summary.format(
-                round(std_res,2),
+                round(std_res,5),
                 noise,
                 mde,
                 round(data[(data.ds >= pd.to_datetime(self.intervention[0])) & (data.ds <= pd.to_datetime(self.intervention[1]))].y.mean(),2),
@@ -306,8 +297,9 @@ class tscausalinference:
                 round(self.pre_int_metrics[2][1],2),
                 round(self.int_metrics[3][1],2),
                 round(self.int_metrics[3][1]/self.pre_int_metrics[2][1],2),
+                round(self.int_metrics[3][1] - self.pre_int_metrics[2][1],2),
                 self.n_samples,
-                self.stadisticts[0]
+                round(self.stadisticts[0],5)
             )
         )
     
@@ -346,3 +338,20 @@ class tscausalinference:
                     round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_upper.sum()),2)
             ).strip()
         )
+
+    def seasonal_decompose(self):
+        data = self.data.copy()
+        data['ds'] = pd.to_datetime(data['ds'])
+        data.set_index('ds', inplace = True)
+
+        data = data[(data.index < self.intervention[0])].copy()
+
+        cols = list(set(data.columns.to_list()) - set(['point_effects', 'yhat', 'yhat_lower', 'yhat_upper', 'cummulitive_y', 'cummulitive_yhat', 'cummulitive_effect', 'cummulitive_yhat_lower', 'cummulitive_yhat_upper']))
+
+        fig, axes = plt.subplots(nrows=len(cols), ncols=1, figsize=(18, 12))
+
+        for number, name in enumerate(cols):
+            sns.lineplot(x = data.index, y = data[name], color = 'b', ax=axes[number], linewidth=1, label = name)
+        
+        # Show the plot
+        sns.despine()

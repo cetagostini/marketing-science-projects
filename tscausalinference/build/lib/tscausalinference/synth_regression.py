@@ -10,6 +10,8 @@ from sklearn.metrics import r2_score, mean_absolute_error
 import pandas as pd
 from pandas import DataFrame
 
+import numpy as np
+
 import logging
 
 from tscausalinference.evaluators import mape
@@ -23,7 +25,8 @@ def synth_analysis(df: DataFrame = None,
                     regressors: list = [], 
                     intervention: list = None, 
                     seasonality: bool = True,
-                    cross_validation_steps: int = 5
+                    cross_validation_steps: int = 5,
+                    alpha: float = 0.05
                     ):
     """
     A function to analyze a dataset using the Prophet library and provide evaluation metrics, response metrics and 
@@ -104,15 +107,19 @@ def synth_analysis(df: DataFrame = None,
 
     print('Training period: {} to {}'.format(pre_intervention[0], pre_intervention[1]))
     print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
+    print('Prediction horizon: {} days'.format(prediction_period))
 
     if seasonality:
         prophet = Prophet(daily_seasonality=True, 
                     weekly_seasonality=True, 
                     changepoint_prior_scale = 0.05, 
-                    changepoint_range = 0.85)
+                    changepoint_range = 0.85,
+                    interval_width= 1 - alpha)
     else:
-        prophet = Prophet(changepoint_prior_scale = 0.05, 
-                    changepoint_range = 0.85)
+        prophet = Prophet(
+                        changepoint_prior_scale = 0.05, 
+                        changepoint_range = 0.85,
+                        interval_width= 1 - alpha)
 
     for regressor in regressors:
             prophet.add_regressor(name = regressor)
@@ -129,7 +136,7 @@ def synth_analysis(df: DataFrame = None,
     df['ds'] = pd.to_datetime(df['ds'])
 
     data = pd.merge(
-        prophet_predict[['ds','yhat', 'yhat_lower', 'yhat_upper']], 
+        prophet_predict[['ds','yhat', 'yhat_lower', 'yhat_upper', 'trend']+list(prophet.seasonalities.keys())], 
         df[["ds", "y"]], how='left', on='ds'
         )
 
@@ -156,10 +163,12 @@ def synth_analysis(df: DataFrame = None,
 
         print(tabulate(table, headers=['Regressor', 'Coefficient'], tablefmt='grid'))
 
+    print('Seasons detected: {}'.format(list(prophet.seasonalities.keys())))
     pre_int_metrics = [
     ['r2', r2_score(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
     ['MAE', mean_absolute_error(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
-    ['MAPE (%)', mape(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)]
+    ['MAPE (%)', mape(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
+    ['Noise (Std)', np.std(data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y - data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat)]
     ]
 
     strings_info = """
