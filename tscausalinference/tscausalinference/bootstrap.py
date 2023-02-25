@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Union
 
 def bootstrap_simulate(
-                    data: Union[np.array, DataFrame] = None, 
+                    data: Union[np.array, pd.DataFrame] = None, 
                     n_samples: int = 1500, 
                     n_steps: int = None):
     """
