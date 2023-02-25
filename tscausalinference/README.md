@@ -6,7 +6,7 @@
 
 Causal inference is a family of statistical methods used to determine the cause of changes in one variable if the changes occur in a different variable. The tscausalinference library creates synthetic control groups (forecast response) to determine the impact of a real treatment group (actual response). By defining these two groups, the library calculates the counterfactual result (difference between the groups) and determines its statistical significance using the same A/B testing methodology.
 
-The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. Bootstrap simulations are performed to estimate the sampling distribution of the effect and to test its statistical significance.
+The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. Bootstrap random walks simulations are performed to estimate the sampling distribution of the effect and to test its statistical significance.
 
 The library works as follows:
 
@@ -42,14 +42,14 @@ The `tscausalinference` function takes the following arguments:
 - `cross_validation_steps`: number of steps to use in cross-validation for Prophet model tuning
 
 ```python
-import tscausalinference as tsci
+from tscausalinference import tscausalinference as tsci
 import pandas as pd
 
 # Load data
 df = pd.read_csv('mydata.csv')
-
-data = tscausalinference(data = df, intervention = intervention)
 intervention = ['2022-07-04', '2022-07-19']
+
+data = tsci(data = df, intervention = intervention)
 
 data.plot_intervention()
 ```
@@ -57,7 +57,7 @@ data.plot_intervention()
 
 ### Checking seasonal decomposition
 ```python
-data = tscausalinference(data = df, intervention = intervention)
+data = tsci(data = df, intervention = intervention)
 
 data.seasonal_decompose()
 ```
@@ -65,7 +65,7 @@ data.seasonal_decompose()
 
 ### Checking p-value, simulations & distributions
 ```python
-data = tscausalinference(data = df, intervention = intervention)
+data = tsci(data = df, intervention = intervention)
 
 data.plot_simulations()
 ```
@@ -73,7 +73,7 @@ data.plot_simulations()
 
 ### Customizing model
 ```python
-data = tscausalinference(data = df, intervention = intervention, regressors = ['a','b'],
+data = tsci(data = df, intervention = intervention, regressors = ['a','b'],
                         alpha = 0.03, n_samples = 10000, cross_validation_steps = 15
                         )
 
@@ -101,17 +101,17 @@ data.summary()
 ```
 
 ## Extra documentation
-Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
-Check out [Introduction Notebooks](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/basic.ipynb) to see an example of usage.
+1. Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
+2. Check out [Introduction Notebooks](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/basic.ipynb) to see an example of usage.
+3. Check on [Google colab ]() soon 🔥.
 
 ## Inspirational articles:
 1. [Bootstrap random walks](https://reader.elsevier.com/reader/sd/pii/S0304414915300247?token=0E54369709F75136F10874CA9318FB348A6B9ED117081D7607994EDB862C09E8F95AE336C38CD97AD7A2C50FF14A8708&originRegion=eu-west-1&originCreation=20230224195555)
 2. [Public Libs](https://github.com/lytics/impact)
-3. [Name](https://en.wikipedia.org/wiki/Random_walk)
-4. [A Nonparametric approach for multiple change point analysis](https://arxiv.org/pdf/1306.4933.pdf)
-5. [Causal Impact on python](https://www.youtube.com/watch?v=GTgZfCltMm8&t=272s)
-6. [Causal Inference Using Bayesian Structural Time-Series Models](https://towardsdatascience.com/causal-inference-using-bayesian-structural-time-series-models-ab1a3da45cd0)
-7. [Wikipedia](https://en.wikipedia.org/wiki/Random_walk)
+3. [A Nonparametric approach for multiple change point analysis](https://arxiv.org/pdf/1306.4933.pdf)
+4. [Causal Impact on python](https://www.youtube.com/watch?v=GTgZfCltMm8&t=272s)
+5. [Causal Inference Using Bayesian Structural Time-Series Models](https://towardsdatascience.com/causal-inference-using-bayesian-structural-time-series-models-ab1a3da45cd0)
+6. [Wikipedia](https://en.wikipedia.org/wiki/Random_walk)
 
 
 ## License
