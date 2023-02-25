@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.9'
+VERSION = '0.1.0'
 DESCRIPTION = 'Simplificación de la conection a el API REST de Adquality en Python.'
 
 with open('README.md', encoding='utf-8') as f:

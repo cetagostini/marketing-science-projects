@@ -46,6 +46,12 @@ class tscausalinference:
         Plots the time series data before and after the intervention with confidence intervals.
     plot_simulations(simulation_number: int = 10)
         Plots a specified number of bootstrap simulations.
+    summary()
+        Plots an overview about the results.
+    summary_intervention()
+        Plots an overview of the results during intervention period.
+    seasonal_decompose()
+        Plots the seasonal decomposition of the time series.
     """
 
     def __init__(self,
@@ -259,8 +265,8 @@ class tscausalinference:
     The 95% confidence interval of this counterfactual prediction is {} to {}.
 
     The usual error of your model is {}%, while the difference during the intervention period is {}%. 
-    During the intervention, the error increase {}% ({} percentage points), suggesting some factor is impacting the quality of the model,
-    and that the differences significant.
+    During the intervention, the error increase {}% ({} percentage points), suggesting some factor is 
+    impacting the quality of the model, and the differences are significant.
 
     The probability of obtaining this effect by chance is very small 
     (after {} simulations, bootstrap probability p = {}). 
