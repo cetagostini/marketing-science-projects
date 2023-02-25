@@ -1,5 +1,4 @@
 from typing import List, Union
-from statsmodels.tsa.seasonal import seasonal_decompose
 
 from pandas import DataFrame
 import pandas as pd
@@ -76,7 +75,8 @@ class tscausalinference:
             regressors = regressors, 
             intervention = intervention, 
             seasonality = seasonality,
-            cross_validation_steps = cross_validation_steps
+            cross_validation_steps = cross_validation_steps,
+            alpha = alpha
             )
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0],intervention[1])
         
@@ -230,24 +230,7 @@ class tscausalinference:
         
         data['ds'] = pd.to_datetime(data['ds'])
 
-        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds','y']].copy()
-        
-        # compute time differences between successive timestamps
-        time_diffs = x_decomp['ds'].diff().dropna()
-
-        # compute the median time difference
-        median_diff = time_diffs.median()
-
-        # convert median time difference to a pandas offset
-        freq = int(round(pd.to_timedelta(median_diff).to_pytimedelta().days,0))
-        
-        x_decomp.set_index('ds', inplace=True)
-        print(type(x_decomp.index))
-        print(type(freq))
-
-        decomposition_obj = seasonal_decompose(x = x_decomp.y, model = 'additive', period=freq)
-        
-        std_res = decomposition_obj.resid.describe()['std']
+        std_res = self.pre_int_metrics[3][1]
 
         if std_res < 0.2:
             mde = 15
@@ -355,3 +338,20 @@ class tscausalinference:
                     round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_upper.sum()),2)
             ).strip()
         )
+
+    def seasonal_decompose(self):
+        data = self.data.copy()
+        data['ds'] = pd.to_datetime(data['ds'])
+        data.set_index('ds', inplace = True)
+
+        data = data[(data.index < self.intervention[0])].copy()
+
+        cols = list(set(data.columns.to_list()) - set(['point_effects', 'yhat', 'yhat_lower', 'yhat_upper', 'cummulitive_y', 'cummulitive_yhat', 'cummulitive_effect', 'cummulitive_yhat_lower', 'cummulitive_yhat_upper']))
+
+        fig, axes = plt.subplots(nrows=len(cols), ncols=1, figsize=(18, 12))
+
+        for number, name in enumerate(cols):
+            sns.lineplot(x = data.index, y = data[name], color = 'b', ax=axes[number], linewidth=1, label = name)
+        
+        # Show the plot
+        sns.despine()
