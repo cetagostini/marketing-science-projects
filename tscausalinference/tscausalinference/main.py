@@ -1,7 +1,6 @@
 from typing import List, Union
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-import sys, os, io
 from pandas import DataFrame
 import pandas as pd
 
@@ -107,7 +106,7 @@ class tscausalinference:
         --------
             No returns are defined, as the method simply generates a plot.
         """
-        data = self.data
+        data = self.data.copy()
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(15, 10))
 
         lineplot = sns.lineplot(x = 'ds', y = 'yhat', color = 'r', alpha=0.5, linestyle='--', ci=95,
@@ -164,7 +163,7 @@ class tscausalinference:
         -------
             ValueError: if simulation_number is greater than the number of simulations generated.
         """
-        data = self.data
+        data = self.data.copy()
 
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(18, 5))
         for i in range(simulation_number):#range(len(samples[0])):
@@ -229,15 +228,12 @@ class tscausalinference:
         --------
             No returns are defined, as the method simply generates a overview.
         """
-        data = self.data
+        data = self.data.copy()
         
         data['ds'] = pd.to_datetime(data['ds'])
-        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds', 'y']].set_index('ds')
+        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds', 'y']].sort_values('ds').set_index('ds')
 
-        decomposition_obj = seasonal_decompose(
-                    x = x_decomp, 
-                    model = 'additive'
-                    )
+        decomposition_obj = seasonal_decompose(x = x_decomp, model = 'additive')
         
         std_res = decomposition_obj.resid.describe()['std']
 
