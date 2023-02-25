@@ -146,7 +146,7 @@ def synth_analysis(df: DataFrame = None,
     data['cummulitive_yhat_upper'] = data['yhat_upper'].cumsum()
 
     # print response
-    print(f'Cross-validation MAPE: {model_mape_mean:.2%}')
+    print(f'\nCross-validation MAPE: {model_mape_mean:.2%}')
     if len(regressors) >= 1:
         regressor_df = regressor_coefficients(prophet)
         # format table
