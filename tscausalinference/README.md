@@ -92,11 +92,10 @@ data.summary()
     The 95% confidence interval of this counterfactual prediction is 18.9 to 19.39.
 
     The usual error of your model is 2.23%, while the difference during the intervention period is 13.77%. 
-    During the intervention, the error increase 6.18% (11.54 percentage points), suggesting some factor is impacting the quality of the model,
-    and that the differences significant.
+    During the intervention, the error increase 6.18% (11.54 percentage points), suggesting some factor is impacting the quality of the model, and that the differences significant.
 
     The probability of obtaining this effect by chance is very small 
-    (after 1500 simulations, bootstrap probability p = 0.002). 
+    (after 10000 simulations, bootstrap probability p = 0.002). 
     This means that the causal effect can be considered statistically significant.
 ```
 
