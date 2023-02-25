@@ -104,6 +104,7 @@ def synth_analysis(df: DataFrame = None,
 
     print('Training period: {} to {}'.format(pre_intervention[0], pre_intervention[1]))
     print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
+    print('Prediction horizon: {} days'.format(prediction_period))
 
     if seasonality:
         prophet = Prophet(daily_seasonality=True, 
@@ -129,7 +130,7 @@ def synth_analysis(df: DataFrame = None,
     df['ds'] = pd.to_datetime(df['ds'])
 
     data = pd.merge(
-        prophet_predict[['ds','yhat', 'yhat_lower', 'yhat_upper']], 
+        prophet_predict[['ds','yhat', 'yhat_lower', 'yhat_upper', 'trend']], 
         df[["ds", "y"]], how='left', on='ds'
         )
 

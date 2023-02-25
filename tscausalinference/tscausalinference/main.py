@@ -229,7 +229,11 @@ class tscausalinference:
         data = self.data.copy()
         
         data['ds'] = pd.to_datetime(data['ds'])
-        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds', 'y']].sort_values('ds').set_index('ds')
+        data.set_index('ds', inplace=True)
+        data.index.freq = pd.infer_freq(data.index)
+        
+        x_decomp = data[(data.index <= pd.to_datetime(self.intervention[0]))][['y']].copy()
+        print(type(x_decomp.index))
 
         decomposition_obj = seasonal_decompose(x = x_decomp, model = 'additive')
         
