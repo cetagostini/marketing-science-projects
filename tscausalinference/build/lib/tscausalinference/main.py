@@ -90,7 +90,7 @@ class tscausalinference:
                 n_steps = len(self.data.query(self.string_filter).index)
                 )
         
-        self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, treatment = self.data.query(self.string_filter).y, simulations = self.simulations, center = False)
+        self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, treatment = self.data.query(self.string_filter).y, simulations = self.simulations)
  
     def plot_intervention(self):
         """
