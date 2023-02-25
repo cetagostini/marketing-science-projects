@@ -60,8 +60,6 @@ class tscausalinference:
         n_samples: int = 1500,
         cross_validation_steps: int = 5
         ):
-        """
-        """
 
         self.data = data
         self.intervention = intervention
