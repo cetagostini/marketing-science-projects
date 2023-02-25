@@ -40,6 +40,7 @@ The `tscausalinference` function takes the following arguments:
 - `regressors`: optional list of regressors to be included in the Prophet model
 - `seasonality`: boolean indicating whether to include seasonality in the Prophet model
 - `cross_validation_steps`: number of steps to use in cross-validation for Prophet model tuning
+- `seasonality_mode`: optional string to be included in the Prophet model, default 'additive'
 
 ```python
 from tscausalinference import tscausalinference as tsci

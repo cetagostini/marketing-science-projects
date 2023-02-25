@@ -46,6 +46,12 @@ class tscausalinference:
         Plots the time series data before and after the intervention with confidence intervals.
     plot_simulations(simulation_number: int = 10)
         Plots a specified number of bootstrap simulations.
+    summary()
+        Plots an overview about the results.
+    summary_intervention()
+        Plots an overview of the results during intervention period.
+    seasonal_decompose()
+        Plots the seasonal decomposition of the time series.
     """
 
     def __init__(self,
