@@ -157,9 +157,9 @@ def synth_analysis(df: DataFrame = None,
         print(tabulate(table, headers=['Regressor', 'Coefficient'], tablefmt='grid'))
 
     pre_int_metrics = [
-    ['r2', r2_score(y_pred = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
-    ['MAE', mean_absolute_error(y_pred = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
-    ['MAPE (%)', mape(y_pred = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)]
+    ['r2', r2_score(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
+    ['MAE', mean_absolute_error(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
+    ['MAPE (%)', mape(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)]
     ]
 
     strings_info = """
@@ -178,10 +178,10 @@ Pre intervention metrics
     )
 
     int_metrics = [
-    ['Actual cumulative', data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].y.sum()],
-    ['Predicted cumulative:', data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].yhat.sum()],
-    ['Difference', data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].point_effects.sum()],
-    ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds < intervention[1])].yhat.sum() -1)*100]
+    ['Actual cumulative', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum()],
+    ['Predicted cumulative:', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum()],
+    ['Difference', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].point_effects.sum()],
+    ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum() -1)*100]
     ]
     
     return data, pre_int_metrics, int_metrics
