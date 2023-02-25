@@ -229,13 +229,23 @@ class tscausalinference:
         data = self.data.copy()
         
         data['ds'] = pd.to_datetime(data['ds'])
-        data.set_index('ds', inplace=True)
-        data.index.freq = pd.infer_freq(data.index)
-        
-        x_decomp = data[(data.index <= pd.to_datetime(self.intervention[0]))][['y']].copy()
-        print(type(x_decomp.index))
 
-        decomposition_obj = seasonal_decompose(x = x_decomp, model = 'additive')
+        x_decomp = data[(data.ds <= pd.to_datetime(self.intervention[0]))][['ds','y']].copy()
+        
+        # compute time differences between successive timestamps
+        time_diffs = x_decomp['ds'].diff().dropna()
+
+        # compute the median time difference
+        median_diff = time_diffs.median()
+
+        # convert median time difference to a pandas offset
+        freq = int(round(pd.to_timedelta(median_diff).to_pytimedelta().days,0))
+        
+        x_decomp.set_index('ds', inplace=True)
+        print(type(x_decomp.index))
+        print(type(freq))
+
+        decomposition_obj = seasonal_decompose(x = x_decomp, model = 'additive', period=freq)
         
         std_res = decomposition_obj.resid.describe()['std']
 
@@ -263,7 +273,7 @@ class tscausalinference:
     The 95% confidence interval of this counterfactual prediction is {} to {}.
 
     The usual error of your model is {}%, while the difference during the intervention period is {}%. 
-    During the intervention, the error was {}%, suggesting some factor is impacting the quality of the model,
+    During the intervention, the error increase {}% ({} percentage points), suggesting some factor is impacting the quality of the model,
     and that the differences significant.
 
     The probability of obtaining this effect by chance is very small 
@@ -284,7 +294,7 @@ class tscausalinference:
     The 95% confidence interval of this counterfactual prediction is {} to {}.
 
     The usual error of your model is {}%, while the difference during the intervention period is {}%. 
-    During the intervention, the error was {}%, suggesting that the model can explain well what should happen,
+    During the intervention, the error increase {}% ({} percentage points), suggesting that the model can explain well what should happen,
     and that the differences are not significant.
 
     The probability of obtaining this effect by chance is not small 
@@ -294,7 +304,7 @@ class tscausalinference:
 
         print(
             summary.format(
-                round(std_res,2),
+                round(std_res,5),
                 noise,
                 mde,
                 round(data[(data.ds >= pd.to_datetime(self.intervention[0])) & (data.ds <= pd.to_datetime(self.intervention[1]))].y.mean(),2),
@@ -305,7 +315,7 @@ class tscausalinference:
                 round(self.int_metrics[3][1],2),
                 round(self.int_metrics[3][1]/self.pre_int_metrics[2][1],2),
                 self.n_samples,
-                self.stadisticts[0]
+                round(self.stadisticts[0],5)
             )
         )
     
