@@ -40,8 +40,8 @@ def bootstrap_simulate(
     return bootstrap_samples
     
 def bootstrap_p_value(
-                    control: Union[np.array, DataFrame] = None, 
-                    treatment: Union[np.array, DataFrame] = None, 
+                    control: Union[np.array, pd.DataFrame] = None, 
+                    treatment: Union[np.array, pd.DataFrame] = None, 
                     simulations: np.array = None, 
                     center: bool = False, alpha: float = 0.05):
     """
