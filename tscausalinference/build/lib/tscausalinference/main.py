@@ -91,8 +91,7 @@ class tscausalinference:
                 )
         
         self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, treatment = self.data.query(self.string_filter).y, simulations = self.simulations, center = False)
-
-    
+ 
     def plot_intervention(self):
         """
         The function plot_intervention is a method of the tscausalinference class. It generates a plot showing the predicted and actual values of the target variable around the intervention period, as well as the cumulative effect of the intervention.
@@ -317,6 +316,19 @@ class tscausalinference:
         )
     
     def summary_intervention(self):
+        """
+        Parameters
+        ----------
+            No parameters are required.
+        
+        Raises
+        -------
+            No raises are defined.
+        
+        Returns
+        --------
+            No returns are defined, as the method simply generates a overview.
+        """
         data = self.data
 
         strings_info = """
