@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.0.8
+Version: 0.0.9
 Summary: Simplificación de la conection a el API REST de Adquality en Python.
 Home-page: UNKNOWN
 Author: Carlos Trujillo
@@ -23,7 +23,7 @@ License-File: LICENSE
 
 Causal inference is a family of statistical methods used to determine the cause of changes in one variable if the changes occur in a different variable. The tscausalinference library creates synthetic control groups (forecast response) to determine the impact of a real treatment group (actual response). By defining these two groups, the library calculates the counterfactual result (difference between the groups) and determines its statistical significance using the same A/B testing methodology.
 
-The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. Bootstrap simulations are performed to estimate the sampling distribution of the effect and to test its statistical significance.
+The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. Bootstrap random walks simulations are performed to estimate the sampling distribution of the effect and to test its statistical significance.
 
 The library works as follows:
 
@@ -59,28 +59,75 @@ The `tscausalinference` function takes the following arguments:
 - `cross_validation_steps`: number of steps to use in cross-validation for Prophet model tuning
 
 ```python
-import tscausalinference as tsci
+from tscausalinference import tscausalinference as tsci
 import pandas as pd
 
 # Load data
 df = pd.read_csv('mydata.csv')
+intervention = ['2022-07-04', '2022-07-19']
 
-data = tscausalinference(data = df, intervention = intervention)
+data = tsci(data = df, intervention = intervention)
 
 data.plot_intervention()
 ```
+![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
+
+### Checking seasonal decomposition
+```python
+data = tsci(data = df, intervention = intervention)
+
+data.seasonal_decompose()
+```
+![seasonal_decompose Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/seasonal_decompose.png)
+
+### Checking p-value, simulations & distributions
+```python
+data = tsci(data = df, intervention = intervention)
+
+data.plot_simulations()
+```
+![plot_simulations Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/pvalue.png)
+
+### Customizing model
+```python
+data = tsci(data = df, intervention = intervention, regressors = ['a','b'],
+                        alpha = 0.03, n_samples = 10000, cross_validation_steps = 15
+                        )
+
+data.summary()
+```
+```md
+    Considerations
+    --------------
+    a) The standard deviation of the residuals is 0.12762. This means that the noise in your data is low.
+    b) Based on this information, in order for your effect to be detectable, it should be greater than 15%.
+
+    Summary
+    -------
+    During the intervention period, the response variable had an average value of approximately 21.78. 
+    By contrast, in the absence of an intervention, we would have expected an average response of 19.15. 
+    The 95% confidence interval of this counterfactual prediction is 18.9 to 19.39.
+
+    The usual error of your model is 2.23%, while the difference during the intervention period is 13.77%. 
+    During the intervention, the error increase 6.18% (11.54 percentage points), suggesting some factor is impacting the quality of the model, and that the differences significant.
+
+    The probability of obtaining this effect by chance is very small 
+    (after 10000 simulations, bootstrap probability p = 0.002). 
+    This means that the causal effect can be considered statistically significant.
+```
 
 ## Extra documentation
-Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
+1. Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
+2. Check out [Introduction Notebooks](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/basic.ipynb) to see an example of usage.
+3. Check on [Google colab ]() soon 🔥.
 
 ## Inspirational articles:
 1. [Bootstrap random walks](https://reader.elsevier.com/reader/sd/pii/S0304414915300247?token=0E54369709F75136F10874CA9318FB348A6B9ED117081D7607994EDB862C09E8F95AE336C38CD97AD7A2C50FF14A8708&originRegion=eu-west-1&originCreation=20230224195555)
 2. [Public Libs](https://github.com/lytics/impact)
-3. [Name](https://en.wikipedia.org/wiki/Random_walk)
-4. [A Nonparametric approach for multiple change point analysis](https://arxiv.org/pdf/1306.4933.pdf)
-5. [Causal Impact on python](https://www.youtube.com/watch?v=GTgZfCltMm8&t=272s)
-6. [Causal Inference Using Bayesian Structural Time-Series Models](https://towardsdatascience.com/causal-inference-using-bayesian-structural-time-series-models-ab1a3da45cd0)
-7. [Wikipedia](https://en.wikipedia.org/wiki/Random_walk)
+3. [A Nonparametric approach for multiple change point analysis](https://arxiv.org/pdf/1306.4933.pdf)
+4. [Causal Impact on python](https://www.youtube.com/watch?v=GTgZfCltMm8&t=272s)
+5. [Causal Inference Using Bayesian Structural Time-Series Models](https://towardsdatascience.com/causal-inference-using-bayesian-structural-time-series-models-ab1a3da45cd0)
+6. [Wikipedia](https://en.wikipedia.org/wiki/Random_walk)
 
 
 ## License

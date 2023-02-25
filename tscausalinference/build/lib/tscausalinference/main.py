@@ -57,7 +57,8 @@ class tscausalinference:
         back_window: int = 25,
         seasonality: bool = True,
         n_samples: int = 1500,
-        cross_validation_steps: int = 5
+        cross_validation_steps: int = 5,
+        seasonality_mode: str = 'additive'
         ):
 
         self.data = data
@@ -69,6 +70,7 @@ class tscausalinference:
         self.regressors = regressors
         self.n_samples = n_samples
         self.cross_validation_steps = cross_validation_steps
+        self.seasonality_mode = seasonality_mode
 
         self.data, self.pre_int_metrics, self.int_metrics = synth_analysis(
             df = data, 
@@ -76,7 +78,8 @@ class tscausalinference:
             intervention = intervention, 
             seasonality = seasonality,
             cross_validation_steps = cross_validation_steps,
-            alpha = alpha
+            alpha = alpha,
+            model_mode = seasonality_mode
             )
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0],intervention[1])
         

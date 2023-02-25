@@ -26,7 +26,8 @@ def synth_analysis(df: DataFrame = None,
                     intervention: list = None, 
                     seasonality: bool = True,
                     cross_validation_steps: int = 5,
-                    alpha: float = 0.05
+                    alpha: float = 0.05,
+                    model_mode: str = 'additive'
                     ):
     """
     A function to analyze a dataset using the Prophet library and provide evaluation metrics, response metrics and 
@@ -114,12 +115,14 @@ def synth_analysis(df: DataFrame = None,
                     weekly_seasonality=True, 
                     changepoint_prior_scale = 0.05, 
                     changepoint_range = 0.85,
-                    interval_width= 1 - alpha)
+                    interval_width= 1 - alpha,
+                    seasonality_mode = model_mode)
     else:
         prophet = Prophet(
                         changepoint_prior_scale = 0.05, 
                         changepoint_range = 0.85,
-                        interval_width= 1 - alpha)
+                        interval_width= 1 - alpha,
+                        seasonality_mode = model_mode)
 
     for regressor in regressors:
             prophet.add_regressor(name = regressor)
