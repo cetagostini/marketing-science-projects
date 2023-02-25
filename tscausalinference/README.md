@@ -49,6 +49,7 @@ import pandas as pd
 df = pd.read_csv('mydata.csv')
 
 data = tscausalinference(data = df, intervention = intervention)
+intervention = ['2022-07-04', '2022-07-19']
 
 data.plot_intervention()
 ```
@@ -101,6 +102,7 @@ data.summary()
 
 ## Extra documentation
 Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
+Check out [Introduction Notebooks](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/basic.ipynb) to see an example of usage.
 
 ## Inspirational articles:
 1. [Bootstrap random walks](https://reader.elsevier.com/reader/sd/pii/S0304414915300247?token=0E54369709F75136F10874CA9318FB348A6B9ED117081D7607994EDB862C09E8F95AE336C38CD97AD7A2C50FF14A8708&originRegion=eu-west-1&originCreation=20230224195555)
