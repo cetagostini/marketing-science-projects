@@ -256,46 +256,43 @@ class tscausalinference:
             summary = """
     Considerations
     --------------
-    a) The STD of the residuals is {}. Meaning, the noise in your data is {}.
-    b) Based on this information, in order to be detectable your effect should be grater than {}%.
-    
+    a) The standard deviation of the residuals is {}. This means that the noise in your data is {}.
+    b) Based on this information, in order for your effect to be detectable, it should be greater than {}%.
+
     Summary
     -------
-    During the post-intervention period, the response variable had
-    an average value of approx. {}. By contrast, in the absence of an
-    intervention, we would have expected an average response of {}.
-    The 95% interval of this counterfactual prediction is {} to {}.
-    
-    The usual error of your model is {}%, the difference during the invervention period is {}%.
-    During intervention error growth {}%, suggesting some factor is impacting the quality of the model.
+    During the intervention period, the response variable had an average value of approximately {}. 
+    By contrast, in the absence of an intervention, we would have expected an average response of {}. 
+    The 95% confidence interval of this counterfactual prediction is {} to {}.
 
-    The probability of obtaining this effect by chance is very small
-    (After {} simulations Bootstrap probability p = {}).
-    This means the causal effect can be considered statistically
-    significant.
+    The usual error of your model is {}%, while the difference during the intervention period is {}%. 
+    During the intervention, the error was {}%, suggesting some factor is impacting the quality of the model,
+    and that the differences significant.
+
+    The probability of obtaining this effect by chance is very small 
+    (after {} simulations, bootstrap probability p = {}). 
+    This means that the causal effect can be considered statistically significant.
             """
         else:
             summary = """
     Considerations
     --------------
-    a) The STD of the residuals is {}. Meaning, the noise in your data is {}.
-    b) Based on this information, in order to be detectable your effect should be grater than {}%.
-    
+    a) The standard deviation of the residuals is {}. This means that the noise in your data is {}.
+    b) Based on this information, in order for your effect to be detectable, it should be greater than {}%.
+
     Summary
     -------
-    During the intervention period, the response variable had
-    an average value of approx. {} By contrast, in the absence of an
-    intervention, we would have expected an average response of {}.
-    The 95% interval of this counterfactual prediction is {} to {}.
-    
-    The usual error of your model is {}%, the difference during the invervention period is {}%.
-    During intervention error was {}%, suggesting the model can explain well what should happen 
-    and the difference are not significant.
+    During the intervention period, the response variable had an average value of approximately {}. 
+    By contrast, in the absence of an intervention, we would have expected an average response of {}. 
+    The 95% confidence interval of this counterfactual prediction is {} to {}.
 
-    The probability of obtaining this effect by chance is not small
-    (After {} simulations Bootstrap probability p = {}).
-    This means the causal effect can not be considered statistically
-    significant.
+    The usual error of your model is {}%, while the difference during the intervention period is {}%. 
+    During the intervention, the error was {}%, suggesting that the model can explain well what should happen,
+    and that the differences are not significant.
+
+    The probability of obtaining this effect by chance is not small 
+    (after {} simulations, bootstrap probability p = {}). 
+    This means that the causal effect cannot be considered statistically significant.
             """
 
         print(
