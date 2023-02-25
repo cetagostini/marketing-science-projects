@@ -1,4 +1,5 @@
 from typing import List, Union
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 import sys, os, io
 from pandas import DataFrame
@@ -9,8 +10,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from tabulate import tabulate
-
-from statsmodels.tsa.seasonal import seasonal_decompose
 
 from tscausalinference.synth_regression import synth_analysis
 from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
