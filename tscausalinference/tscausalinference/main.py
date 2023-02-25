@@ -259,8 +259,8 @@ class tscausalinference:
     The 95% confidence interval of this counterfactual prediction is {} to {}.
 
     The usual error of your model is {}%, while the difference during the intervention period is {}%. 
-    During the intervention, the error increase {}% ({} percentage points), suggesting some factor is impacting the quality of the model,
-    and that the differences significant.
+    During the intervention, the error increase {}% ({} percentage points), suggesting some factor is 
+    impacting the quality of the model, and the differences are significant.
 
     The probability of obtaining this effect by chance is very small 
     (after {} simulations, bootstrap probability p = {}). 
