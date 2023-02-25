@@ -169,7 +169,7 @@ class tscausalinference:
                         linewidth=0.5, alpha=0.45,
                         color = 'orange', legend = False, ax=axes[0])
 
-        sns.lineplot(x = 'ds', y = 'yhat', color = 'b',
+        sns.lineplot(x = 'ds', y = 'y', color = 'b',
                     err_kws={'linestyle': '--', 'hatch': '///', 'fc': 'none'}, ax=axes[0],
                     data = data[(data.ds <= pd.to_datetime(self.intervention[0]))],
                     linewidth=1, label='Training')
@@ -245,7 +245,7 @@ class tscausalinference:
         print(type(x_decomp.index))
         print(type(freq))
 
-        decomposition_obj = seasonal_decompose(x = x_decomp, model = 'additive', period=freq)
+        decomposition_obj = seasonal_decompose(x = x_decomp.y, model = 'additive', period=freq)
         
         std_res = decomposition_obj.resid.describe()['std']
 
@@ -314,6 +314,7 @@ class tscausalinference:
                 round(self.pre_int_metrics[2][1],2),
                 round(self.int_metrics[3][1],2),
                 round(self.int_metrics[3][1]/self.pre_int_metrics[2][1],2),
+                round(self.int_metrics[3][1] - self.pre_int_metrics[2][1],2),
                 self.n_samples,
                 round(self.stadisticts[0],5)
             )
