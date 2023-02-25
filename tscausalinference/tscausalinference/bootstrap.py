@@ -43,7 +43,7 @@ def bootstrap_p_value(
                     control: Union[np.array, pd.DataFrame] = None, 
                     treatment: Union[np.array, pd.DataFrame] = None, 
                     simulations: np.array = None, 
-                    center: bool = False, alpha: float = 0.05):
+                    alpha: float = 0.05):
     """
     Calculate the p-value and false positive rate for a two-sample hypothesis test using bootstrapping
     with a specified number of simulations.
@@ -73,13 +73,6 @@ def bootstrap_p_value(
     # Calculate the mean of the data
     mean = np.mean(control)
     mean_treatment = np.mean(treatment)
-    
-    if center:
-        # Subtract the mean from each value to switch the mean to zero
-        data = np.array([x - mean for x in control])
-        mean_treatment = mean_treatment - mean
-    else:
-        data = np.array(control)
         
     bootstrapped_means = np.empty(len(simulations))
     
