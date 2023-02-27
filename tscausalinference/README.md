@@ -56,6 +56,20 @@ data.plot_intervention()
 ```
 ![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
 
+### Create your own data
+```python
+from tscausalinference import synth_dataframe
+
+synth = synth_dataframe() #Create fake data using our custom function.
+df = synth.DataFrame()
+```
+```md
+Min date: 2022-01-01 00:00:00
+Max date: 2022-12-31 00:00:00
+Day where effect was injected: 2022-12-17 00:00:00
+Power of the effect: 30.0%
+```
+
 ### Checking seasonal decomposition
 ```python
 data = tsci(data = df, intervention = intervention)

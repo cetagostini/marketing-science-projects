@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0'
-DESCRIPTION = 'Simplificación de la conection a el API REST de Adquality en Python.'
+VERSION = '0.1.1'
+DESCRIPTION = 'Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects'
 
 with open('README.md', encoding='utf-8') as f:
     long_description_english = f.read()
