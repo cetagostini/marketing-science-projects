@@ -11,6 +11,7 @@ from tabulate import tabulate
 
 from tscausalinference.synth_regression import synth_analysis
 from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
+from tscausalinference.load_synth_data import create_synth_dataframe
 
 sns.set_theme()
 sns.set_context("paper")
@@ -364,3 +365,51 @@ class tscausalinference:
         
         # Show the plot
         sns.despine()
+
+class synth_dataframe:
+    """
+    Creates a synthetic dataframe with time series components.
+
+    Args:
+    - n (int): Number of periods to generate.
+    - trend (float): Slope of the trend component.
+    - seasonality (int): Period of the seasonality component.
+    - simulated_effect (float): Multiplicative effect of the treatment.
+    - eff_n (int): Number of periods the treatment lasts.
+    - noise_power (float): Scale of the noise component.
+    - regressor (int): Number of regressors to include in the dataframe.
+
+    Methods:
+    - DataFrame: Returns a pandas dataframe with columns 'ds', 'y' and the regressors created.
+
+    Example:
+    >>> synth = synth_dataframe(n=365, trend=0.1, seasonality=7, simulated_effect=1.2, eff_n=30, noise_power=0.1, regressor=3)
+    >>> df = synth.DataFrame()
+    """
+
+    def __init__(self,
+                n: int = 365, 
+                trend: float = 0.1, 
+                seasonality: int = 7, 
+                simulated_effect: float = 0.15, 
+                eff_n: int = 15, 
+                noise_power: float = 0.15, 
+                regressors: int = 2):
+        self.n = n
+        self.seasonality = seasonality
+        self.trend = trend
+        self.simulated_effect = simulated_effect
+        self.eff_n = eff_n
+        self.noise_power = noise_power
+        self.regressors = regressors
+
+        self.df = create_synth_dataframe(n = self.n, 
+                           trend = self.trend, 
+                           seasonality = self.seasonality, 
+                           simulated_effect = self.simulated_effect, 
+                           eff_n = self.eff_n, 
+                           noise_power = self.noise_power, 
+                           regressor = self.regressors)
+    
+    def DataFrame(self):
+        return self.df

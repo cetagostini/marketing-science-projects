@@ -1,7 +1,7 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.1.0
-Summary: Simplificación de la conection a el API REST de Adquality en Python.
+Version: 0.1.1.3
+Summary: Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects
 Home-page: UNKNOWN
 Author: Carlos Trujillo
 Author-email: carlangastr@gmail.com
@@ -72,6 +72,20 @@ data = tsci(data = df, intervention = intervention)
 data.plot_intervention()
 ```
 ![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
+
+### Create your own data
+```python
+from tscausalinference import synth_dataframe
+
+synth = synth_dataframe() #Create fake data using our custom function.
+df = synth.DataFrame()
+```
+```md
+Min date: 2022-01-01 00:00:00
+Max date: 2022-12-31 00:00:00
+Day where effect was injected: 2022-12-17 00:00:00
+Power of the effect: 30.0%
+```
 
 ### Checking seasonal decomposition
 ```python

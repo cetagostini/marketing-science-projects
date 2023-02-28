@@ -389,11 +389,11 @@ class synth_dataframe:
 
     def __init__(self,
                 n: int = 365, 
-                trend: float = 0.3, 
+                trend: float = 0.1, 
                 seasonality: int = 7, 
-                simulated_effect: float = 0.3, 
+                simulated_effect: float = 0.15, 
                 eff_n: int = 15, 
-                noise_power: float = 0.3, 
+                noise_power: float = 0.15, 
                 regressors: int = 2):
         self.n = n
         self.seasonality = seasonality

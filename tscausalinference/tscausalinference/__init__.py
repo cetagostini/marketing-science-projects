@@ -15,3 +15,4 @@
 
 from tscausalinference.__version__ import __version__
 from tscausalinference.main import tscausalinference
+from tscausalinference.main import synth_dataframe
