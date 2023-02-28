@@ -21,6 +21,10 @@ logger.addHandler(logging.NullHandler())
 logger.propagate = False
 logger.setLevel(logging.CRITICAL)
 
+logging.getLogger('fbprophet').setLevel(logging.ERROR)
+
+pd.options.mode.chained_assignment = None 
+
 def synth_analysis(df: DataFrame = None, 
                     regressors: list = [], 
                     intervention: list = None, 
@@ -175,9 +179,9 @@ def synth_analysis(df: DataFrame = None,
     ]
 
     strings_info = """
-+----------------------+
++------------------------+
 Pre intervention metrics
-+----------------------+
++------------------------+
 {}
     """
 

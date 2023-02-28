@@ -16,6 +16,8 @@ from tscausalinference.load_synth_data import create_synth_dataframe
 sns.set_theme()
 sns.set_context("paper")
 
+pd.options.mode.chained_assignment = None 
+
 class tscausalinference:
     """
    Time series causal inference using structural causal models (SCM) and a difference-in-differences (DiD) approach.
@@ -180,8 +182,8 @@ class tscausalinference:
                         color = 'orange', legend = False, ax=axes[0])
 
         sns.lineplot(x = 'ds', y = 'y', color = 'b',
-                    err_kws={'linestyle': '--', 'hatch': '///', 'fc': 'none'}, ax=axes[0],
-                    data = data[(data.ds <= pd.to_datetime(self.intervention[0]))],
+                    ax=axes[0],
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))],
                     linewidth=1, label='Training')
 
         sns.lineplot(x = 'ds', y = 'yhat', color = 'b',
@@ -190,7 +192,6 @@ class tscausalinference:
                     linewidth=1, label='Forcast', ls='--', ax=axes[0])
 
         sns.lineplot(x = 'ds', y = 'y', color = 'g',
-                    err_kws={'linestyle': '--', 'hatch': '///', 'fc': 'none'},
                     data = data[(data.ds >= pd.to_datetime(self.intervention[0]))&(data.ds <= pd.to_datetime(self.intervention[1]))],
                     label='Real', ax=axes[0])
         
@@ -331,7 +332,7 @@ class tscausalinference:
 
         strings_info = """
 +-----------------------+-----------+
-      Pre intervention metrics
+        intervention metrics
 +-----------------------+-----------+
 {}
 +-----------------------+-----------+

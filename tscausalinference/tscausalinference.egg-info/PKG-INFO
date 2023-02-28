@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.1.1.3
+Version: 0.1.2.2
 Summary: Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects
 Home-page: UNKNOWN
 Author: Carlos Trujillo
@@ -134,7 +134,7 @@ data.summary()
 ## Extra documentation
 1. Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
 2. Check out [Introduction Notebooks](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/basic.ipynb) to see an example of usage.
-3. Check on [Google colab ]() soon 🔥.
+3. Check on [Google colab](https://colab.research.google.com/drive/1OeF0OLlu0d9oM0xWiJSIEnxN-eWyFskq#scrollTo=YTX8Z4ZOwpyw) 🔥.
 
 ## Inspirational articles:
 1. [Bootstrap random walks](https://reader.elsevier.com/reader/sd/pii/S0304414915300247?token=0E54369709F75136F10874CA9318FB348A6B9ED117081D7607994EDB862C09E8F95AE336C38CD97AD7A2C50FF14A8708&originRegion=eu-west-1&originCreation=20230224195555)
