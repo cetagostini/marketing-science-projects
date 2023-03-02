@@ -69,7 +69,20 @@ Max date: 2022-12-31 00:00:00
 Day where effect was injected: 2022-12-17 00:00:00
 Power of the effect: 30.0%
 ```
-
+**Expected Schema**
+```md
+<class 'pandas.core.frame.DataFrame'>
+Int64Index: 365 entries, 0 to 364
+Data columns (total 4 columns):
+ #   Column      Non-Null Count  Dtype         
+---  ------      --------------  -----         
+ 0   ds          365 non-null    datetime64[ns]
+ 1   y           365 non-null    float64       
+ 2   regressor1  365 non-null    float64       
+ 3   regressor2  365 non-null    float64       
+dtypes: datetime64[ns](1), float64(3)
+memory usage: 14.3 KB
+```
 ### Checking seasonal decomposition
 ```python
 data = tsci(data = df, intervention = intervention)

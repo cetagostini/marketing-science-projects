@@ -166,11 +166,11 @@ def synth_analysis(df: DataFrame = None,
         # format table
         table = []
         for index, row in regressor_df.iterrows():
-            table.append([index, row])
+            table.append([index, *list(row.values)])
 
-        print(tabulate(table, headers=['Regressor', 'Coefficient'], tablefmt='grid'))
+        print(tabulate(table, headers=['Regressor', 'Regressor Mode', 'Center', 'Coef. Lower', 'Coef', 'Coef. Upper'], tablefmt='grid'))
 
-    print('Seasons detected: {}'.format(list(prophet.seasonalities.keys())))
+    print('\nSeasons detected: {}'.format(list(prophet.seasonalities.keys())))
     pre_int_metrics = [
     ['r2', r2_score(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
     ['MAE', mean_absolute_error(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],

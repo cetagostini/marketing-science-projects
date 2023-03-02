@@ -149,7 +149,7 @@ class tscausalinference:
                     )
 
         sns.lineplot(x = 'ds', y = 'cummulitive_effect', color = 'g',
-                    data = data[data.ds > self.intervention[1]],
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))],
                     ax=axes[1]
                     )
 
@@ -183,7 +183,7 @@ class tscausalinference:
 
         sns.lineplot(x = 'ds', y = 'y', color = 'b',
                     ax=axes[0],
-                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))],
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))],
                     linewidth=1, label='Training')
 
         sns.lineplot(x = 'ds', y = 'yhat', color = 'b',
@@ -305,10 +305,10 @@ class tscausalinference:
                 round(data[(data.ds >= pd.to_datetime(self.intervention[0])) & (data.ds <= pd.to_datetime(self.intervention[1]))].yhat.mean(),2),
                 round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_lower.mean(),2), 
                 round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_upper.mean(),2),
-                round(self.pre_int_metrics[2][1],2),
-                round(self.int_metrics[3][1],2),
-                round(self.int_metrics[3][1]/self.pre_int_metrics[2][1],2),
-                round(self.int_metrics[3][1] - self.pre_int_metrics[2][1],2),
+                abs(round(self.pre_int_metrics[2][1],2)),
+                abs(round(self.int_metrics[3][1],2)),
+                round(abs(round(self.int_metrics[3][1],2))/abs(round(self.pre_int_metrics[2][1],2)),2)*100,
+                round(round(abs(self.int_metrics[3][1]),2) - abs(round(self.pre_int_metrics[2][1],2)),2),
                 self.n_samples,
                 round(self.stadisticts[0],5)
             )
