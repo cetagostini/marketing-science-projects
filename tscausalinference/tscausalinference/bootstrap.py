@@ -92,6 +92,6 @@ def bootstrap_p_value(
     p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- shifted_mean_treatment)]) / len(shifted_simulations)
     p_mean_positive = len(bootstrapped_means[bootstrapped_means > shifted_mean_treatment]) / len(shifted_simulations)
     
-    p_value = 1 - p_center
+    p_value = p_mean_negative + p_mean_positive #1 - p_center
 
     return shifted_mean_treatment, [p_value, p_center], [lower, upper], bootstrapped_means
