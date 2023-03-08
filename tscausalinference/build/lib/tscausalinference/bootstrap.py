@@ -74,38 +74,24 @@ def bootstrap_p_value(
     # Calculate the mean of the data
     mean = np.mean(control)
     mean_treatment = np.mean(treatment)
+
+    # Shift the simulations and treatment mean to have mean equal to 0
+    shifted_simulations = [sim - np.mean(sim) + mean for sim in simulations]
+    shifted_mean_treatment = mean_treatment - mean
         
-    bootstrapped_means = np.empty(len(simulations))
+    bootstrapped_means = np.empty(len(shifted_simulations))
     
-    for i in range(len(simulations)):
-        bootstrapped_means[i] = simulations[i].mean()
+    for i in range(len(shifted_simulations)):
+        bootstrapped_means[i] = shifted_simulations[i].mean()
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
     
-    # fp_rate = len(bootstrapped_means[(bootstrapped_means >= (- mean_treatment)) & 
-    #                                         (bootstrapped_means <= mean_treatment)]) / len(simulations)
+    p_center = len(bootstrapped_means[(bootstrapped_means >= (- shifted_mean_treatment)) & 
+                                            (bootstrapped_means <= shifted_mean_treatment)]) / len(shifted_simulations)
     
-    # p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- mean_treatment)]) / len(simulations)
-    # p_mean_positive = len(bootstrapped_means[bootstrapped_means > mean_treatment]) / len(simulations)
+    p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- shifted_mean_treatment)]) / len(shifted_simulations)
+    p_mean_positive = len(bootstrapped_means[bootstrapped_means > shifted_mean_treatment]) / len(shifted_simulations)
     
-    # p_value = p_mean_positive + p_mean_negative
+    p_value = 1 - p_center
 
-    # Calculate the standard error of the mean
-    se = np.std(treatment) / np.sqrt(len(treatment))
-
-    # Calculate the t-value and p-value for a two-tailed test
-    df = len(treatment) + len(control) - 2
-    t_value = (mean_treatment - mean) / se
-    p_value = 2 * t.cdf(-np.abs(t_value), df)
-
-    # Calculate the confidence interval
-    # alpha = 0.05
-    # lower, upper = t.interval(1 - alpha, df, loc=mean_treatment, scale=se)
-
-    # Calculate the probability of mean_treatment being in the tails
-    fp_rate = t.cdf(lower, df) + (1 - t.cdf(upper, df))
-
-    # Calculate the probability of mean_treatment being in the center
-    p_center = t.cdf(upper, df) - t.cdf(lower, df)
-
-    return [p_value, fp_rate, p_center], [lower, upper], bootstrapped_means
+    return [p_value, p_center], [lower, upper], bootstrapped_means
