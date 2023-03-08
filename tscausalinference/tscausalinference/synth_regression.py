@@ -132,11 +132,11 @@ def synth_analysis(df: DataFrame = None,
     print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
     print('Prediction horizon: {} days'.format(prediction_period))
 
-    if len(model_params[list(model_params.keys())[0]]) > 1:
+    if len(model_parameters[list(model_parameters.keys())[0]]) > 1:
         print('Grid Search Cross-Validation mode:\n')
-        if isinstance(model_params[list(model_params.keys())[0]], list):
+        if isinstance(model_parameters[list(model_parameters.keys())[0]], list):
             # Generate all combinations of parameters
-            all_params = [dict(zip(model_params.keys(), v)) for v in itertools.product(*model_params.values())]
+            all_params = [dict(zip(model_parameters.keys(), v)) for v in itertools.product(*model_parameters.values())]
             rmses = []  # Store the RMSEs for each params here
 
             # Use cross validation to evaluate all parameters
@@ -158,7 +158,7 @@ def synth_analysis(df: DataFrame = None,
             raise TypeError("Your parameters on the Grid are not list type")
     
     else:
-        prophet = Prophet(**model_params)
+        prophet = Prophet(**model_parameters)
 
     for regressor in regressors:
             prophet.add_regressor(name = regressor)
