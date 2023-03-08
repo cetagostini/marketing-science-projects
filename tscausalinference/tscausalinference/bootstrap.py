@@ -94,4 +94,4 @@ def bootstrap_p_value(
     
     p_value = 1 - p_center
 
-    return [p_value, p_center], [lower, upper], bootstrapped_means
+    return shifted_mean_treatment, [p_value, p_center], [lower, upper], bootstrapped_means
