@@ -114,7 +114,8 @@ def synth_analysis(df: DataFrame = None,
         
         print('Default parameters grid: \n{}',format(model_parameters))
     else:
-        model_parameters = model_params
+        model_params.update({'interval_width': 1 - alpha})
+        model_parameters = model_params.copy()
         print('Custom parameters grid: \n{}',format(model_parameters))
     
     pre_intervention = [df.ds.min(),(pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
