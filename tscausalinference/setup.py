@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.1.3.3'
+VERSION = '0.1.3.4'
 DESCRIPTION = 'Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects'
 
 with open('README.md', encoding='utf-8') as f:

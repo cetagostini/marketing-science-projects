@@ -78,26 +78,13 @@ def bootstrap_p_value(
         
     bootstrapped_means = np.empty(len(simulations))
     
-    # for i in range(len(simulations)):
-    #     bootstrapped_means[i] = simulations[i].mean()
-
     for i in range(len(simulations)):
-        if i < len(simulations) // 3:
-            bootstrapped_means[i] = simulations[i].mean() * (1+mape)
-        elif i < 2 * len(simulations) // 3:
-            bootstrapped_means[i] = simulations[i].mean() * (mape-1)
-        else:
-            bootstrapped_means[i] = simulations[i].mean()  # no alteration
+        bootstrapped_means[i] = simulations[i].mean()
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
-    
-    # fp_rate = len(bootstrapped_means[(bootstrapped_means >= (- mean_treatment)) & 
-    #                                         (bootstrapped_means <= mean_treatment)]) / len(simulations)
-    
-    # p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- mean_treatment)]) / len(simulations)
-    # p_mean_positive = len(bootstrapped_means[bootstrapped_means > mean_treatment]) / len(simulations)
-    
-    # p_value = p_mean_positive + p_mean_negative
+
+    lower = lower * (mape-1)
+    upper = upper * (1+mape)
 
     # Calculate the standard error of the mean
     se = np.std(treatment) / np.sqrt(len(treatment))
