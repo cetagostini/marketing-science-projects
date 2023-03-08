@@ -44,8 +44,7 @@ def bootstrap_p_value(
                     control: Union[np.array, pd.DataFrame] = None, 
                     treatment: Union[np.array, pd.DataFrame] = None, 
                     simulations: np.array = None, 
-                    alpha: float = 0.05,
-                    mape: float = None):
+                    alpha: float = 0.05):
     """
     Calculate the p-value and false positive rate for a two-sample hypothesis test using bootstrapping
     with a specified number of simulations.
@@ -82,9 +81,14 @@ def bootstrap_p_value(
         bootstrapped_means[i] = simulations[i].mean()
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
-
-    lower = lower * (mape-1)
-    upper = upper * (1+mape)
+    
+    # fp_rate = len(bootstrapped_means[(bootstrapped_means >= (- mean_treatment)) & 
+    #                                         (bootstrapped_means <= mean_treatment)]) / len(simulations)
+    
+    # p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- mean_treatment)]) / len(simulations)
+    # p_mean_positive = len(bootstrapped_means[bootstrapped_means > mean_treatment]) / len(simulations)
+    
+    # p_value = p_mean_positive + p_mean_negative
 
     # Calculate the standard error of the mean
     se = np.std(treatment) / np.sqrt(len(treatment))

@@ -94,8 +94,7 @@ class tscausalinference:
         
         self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
                                                                                     treatment = self.data.query(self.string_filter).y, 
-                                                                                    simulations = self.simulations,
-                                                                                    mape = abs(round(self.pre_int_metrics[2][1],2))/100
+                                                                                    simulations = self.simulations
                                                                                     )
  
     def plot_intervention(self, past_window: int = 5, back_window: int = 25, figsize=(15, 10)):
