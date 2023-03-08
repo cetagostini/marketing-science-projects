@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy.stats import t
 
 from typing import Union
 
@@ -81,11 +82,30 @@ def bootstrap_p_value(
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
     
-    fp_rate = len(bootstrapped_means[(bootstrapped_means >= (- mean_treatment)) & 
-                                            (bootstrapped_means <= mean_treatment)]) / len(simulations)
+    # fp_rate = len(bootstrapped_means[(bootstrapped_means >= (- mean_treatment)) & 
+    #                                         (bootstrapped_means <= mean_treatment)]) / len(simulations)
     
-    p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- mean_treatment)]) / len(simulations)
-    p_mean_positive = len(bootstrapped_means[bootstrapped_means > mean_treatment]) / len(simulations)
+    # p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- mean_treatment)]) / len(simulations)
+    # p_mean_positive = len(bootstrapped_means[bootstrapped_means > mean_treatment]) / len(simulations)
     
-    p_value = p_mean_positive + p_mean_negative
-    return [p_value, fp_rate], [lower, upper], bootstrapped_means
+    # p_value = p_mean_positive + p_mean_negative
+
+    # Calculate the standard error of the mean
+    se = np.std(treatment) / np.sqrt(len(treatment))
+
+    # Calculate the t-value and p-value for a two-tailed test
+    df = len(treatment) + len(control) - 2
+    t_value = (mean_treatment - mean) / se
+    p_value = 2 * t.cdf(-np.abs(t_value), df)
+
+    # Calculate the confidence interval
+    # alpha = 0.05
+    # lower, upper = t.interval(1 - alpha, df, loc=mean_treatment, scale=se)
+
+    # Calculate the probability of mean_treatment being in the tails
+    fp_rate = t.cdf(lower, df) + (1 - t.cdf(upper, df))
+
+    # Calculate the probability of mean_treatment being in the center
+    p_center = t.cdf(upper, df) - t.cdf(lower, df)
+
+    return [p_value, fp_rate, p_center], [lower, upper], bootstrapped_means

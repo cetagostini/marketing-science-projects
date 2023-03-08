@@ -199,7 +199,8 @@ class tscausalinference:
 
         # Add the mean value to the right corner
         plt.text(1.05, 0.95, f'P-Value: {self.stadisticts[0]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
-        plt.text(1.05, 0.80, f'P-Effect: {self.stadisticts[1]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
+        plt.text(1.05, 0.80, f'FP-Rate: {self.stadisticts[1]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
+        plt.text(1.05, 0.75, f'P-NonEf: {self.stadisticts[2]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
 
         sns.histplot(self.samples_means, kde=True, ax=axes[1])
 
