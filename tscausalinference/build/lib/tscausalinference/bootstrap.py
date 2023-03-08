@@ -76,7 +76,7 @@ def bootstrap_p_value(
     mean_treatment = np.mean(treatment)
 
     # Shift the simulations and treatment mean to have mean equal to 0
-    shifted_simulations = [sim - np.mean(sim) + mean for sim in simulations]
+    shifted_simulations = [sim - mean for sim in simulations]
     shifted_mean_treatment = mean_treatment - mean
         
     bootstrapped_means = np.empty(len(shifted_simulations))
