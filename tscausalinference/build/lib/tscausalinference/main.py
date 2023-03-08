@@ -92,9 +92,10 @@ class tscausalinference:
                 n_steps = len(self.data.query(self.string_filter).index)
                 )
         
-        self.mean_shifted, self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
+        self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
                                                                                     treatment = self.data.query(self.string_filter).y, 
-                                                                                    simulations = self.simulations
+                                                                                    simulations = self.simulations,
+                                                                                    mape = abs(round(self.pre_int_metrics[2][1],6))/100
                                                                                     )
  
     def plot_intervention(self, past_window: int = 5, back_window: int = 25, figsize=(15, 10)):
@@ -202,7 +203,7 @@ class tscausalinference:
 
         # Add the mean value to the right corner
         plt.text(1.05, 0.95, f'P Value: {self.stadisticts[0]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
-        plt.text(1.05, 0.80, f'P Center: {self.stadisticts[1]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
+        #plt.text(1.05, 0.80, f'P Center: {self.stadisticts[1]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
         #plt.text(1.05, 0.75, f'Prob. NonEffect: {self.stadisticts[2]:.2f}', ha='left', va='center', transform=plt.gca().transAxes)
 
         sns.histplot(self.samples_means, kde=True, ax=axes[1])
@@ -216,7 +217,7 @@ class tscausalinference:
         plt.axvline(self.stats_ranges[1], color='r', linestyle='--',alpha=.5,)
 
         # Add the real mean as a scatter point
-        plt.scatter(self.mean_shifted, 0, color='orange', s=600)
+        plt.scatter(data[(data.ds >= pd.to_datetime(self.intervention[0]))&(data.ds <= pd.to_datetime(self.intervention[1]))].y.mean(), 0, color='orange', s=600)
 
         # Show the plot
         sns.despine()
