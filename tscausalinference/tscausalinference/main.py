@@ -62,33 +62,28 @@ class tscausalinference:
         intervention: Union[List[int], List[str], List[pd.Timestamp]],
         regressors: list = [],
         alpha: float = 0.05,
-        past_window: int = 5,
-        back_window: int = 25,
         seasonality: bool = True,
         n_samples: int = 1500,
         cross_validation_steps: int = 5,
-        seasonality_mode: str = 'additive'
+        model_params: dict = {}
         ):
 
         self.data = data
         self.intervention = intervention
         self.alpha = alpha
-        self.past_window = past_window
-        self.back_window = back_window
         self.seasonality = seasonality
         self.regressors = regressors
         self.n_samples = n_samples
         self.cross_validation_steps = cross_validation_steps
-        self.seasonality_mode = seasonality_mode
+        self.model_params = model_params
 
         self.data, self.pre_int_metrics, self.int_metrics = synth_analysis(
             df = data, 
             regressors = regressors, 
             intervention = intervention, 
-            seasonality = seasonality,
             cross_validation_steps = cross_validation_steps,
             alpha = alpha,
-            model_mode = seasonality_mode
+            model_params = model_params
             )
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0],intervention[1])
         
@@ -100,7 +95,7 @@ class tscausalinference:
         
         self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, treatment = self.data.query(self.string_filter).y, simulations = self.simulations)
  
-    def plot_intervention(self):
+    def plot_intervention(self, past_window: int = 5, back_window: int = 25, figsize=(15, 10)):
         """
         The function plot_intervention is a method of the tscausalinference class. It generates a plot showing the predicted and actual values of the target variable around the intervention period, as well as the cumulative effect of the intervention.
 
@@ -117,29 +112,29 @@ class tscausalinference:
             No returns are defined, as the method simply generates a plot.
         """
         data = self.data.copy()
-        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(15, 10))
+        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=figsize)
 
         lineplot = sns.lineplot(x = 'ds', y = 'yhat', color = 'r', alpha=0.5, linestyle='--', ci=95,
                             err_kws={'linestyle': '--', 'hatch': '///', 'fc': 'none'}, ax=axes[0],
-                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))]
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))]
                     )
 
         sns.lineplot(x = 'ds', y = 'y', ax=axes[0], color = 'b',
-                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))]
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))]
                     )
 
         lineplot.axvline(pd.to_datetime(self.intervention[0]), color='r', linestyle='--',alpha=.5)
         lineplot.axvline(pd.to_datetime(self.intervention[1]), color='r', linestyle='--',alpha=.5)
 
-        lineplot.fill_between(data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))]['ds'], 
-                        data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))]['yhat_lower'],
-                        data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))]['yhat_upper'], 
+        lineplot.fill_between(data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))]['ds'], 
+                        data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))]['yhat_lower'],
+                        data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))]['yhat_upper'], 
                         color='r', alpha=.1)
 
         lineplot.legend(['Prediction', 'Real'])
 
         cumplot = sns.lineplot(x = 'ds', y = 'cummulitive_effect', color = 'g',
-             data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))],
+             data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))],
              ax=axes[1]
              )
 
@@ -149,7 +144,7 @@ class tscausalinference:
                     )
 
         sns.lineplot(x = 'ds', y = 'cummulitive_effect', color = 'g',
-                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))],
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))],
                     ax=axes[1]
                     )
 
@@ -160,7 +155,7 @@ class tscausalinference:
 
         plt.show()
 
-    def plot_simulations(self, simulation_number: int = 10):
+    def plot_simulations(self, simulation_number: int = 10, past_window: int = 5, back_window: int = 25, figsize=(18, 5)):
         """
         The plot_simulations() method of tscausalinference class plots the distribution of the mean difference between the treatment and control group based on the bootstrap simulations generated in bootstrap_simulate(). 
         The plot includes a histogram and a box plot of the simulated means.
@@ -175,7 +170,7 @@ class tscausalinference:
         """
         data = self.data.copy()
 
-        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(18, 5))
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=figsize)
         for i in range(simulation_number):#range(len(samples[0])):
             sns.lineplot(x=data[(data.ds >= pd.to_datetime(self.intervention[0]))&(data.ds <= pd.to_datetime(self.intervention[1]))].ds, y=self.simulations[i], 
                         linewidth=0.5, alpha=0.45,
@@ -183,7 +178,7 @@ class tscausalinference:
 
         sns.lineplot(x = 'ds', y = 'y', color = 'b',
                     ax=axes[0],
-                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=self.back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=self.past_window))],
+                    data = data[(data.ds >= pd.to_datetime(self.intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(self.intervention[1]) + pd.Timedelta(days=past_window))],
                     linewidth=1, label='Training')
 
         sns.lineplot(x = 'ds', y = 'yhat', color = 'b',
@@ -307,7 +302,7 @@ class tscausalinference:
                 round(data[(data.ds >= self.intervention[0]) & (data.ds <= self.intervention[1])].yhat_upper.mean(),2),
                 abs(round(self.pre_int_metrics[2][1],2)),
                 abs(round(self.int_metrics[3][1],2)),
-                round(abs(round(self.int_metrics[3][1],2))/abs(round(self.pre_int_metrics[2][1],2)),2)*100,
+                round(abs(round(self.int_metrics[3][1], 2)) / abs(round(self.pre_int_metrics[2][1], 2)), 2) * 100,
                 round(round(abs(self.int_metrics[3][1]),2) - abs(round(self.pre_int_metrics[2][1],2)),2),
                 self.n_samples,
                 round(self.stadisticts[0],5)

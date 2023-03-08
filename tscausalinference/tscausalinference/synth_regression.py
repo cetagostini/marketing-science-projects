@@ -12,6 +12,8 @@ from pandas import DataFrame
 
 import numpy as np
 
+import itertools
+
 import logging
 
 from tscausalinference.evaluators import mape
@@ -28,10 +30,9 @@ pd.options.mode.chained_assignment = None
 def synth_analysis(df: DataFrame = None, 
                     regressors: list = [], 
                     intervention: list = None, 
-                    seasonality: bool = True,
                     cross_validation_steps: int = 5,
                     alpha: float = 0.05,
-                    model_mode: str = 'additive'
+                    model_params: dict = {}
                     ):
     """
     A function to analyze a dataset using the Prophet library and provide evaluation metrics, response metrics and 
@@ -97,7 +98,24 @@ def synth_analysis(df: DataFrame = None,
 
     if isinstance(intervention, type(None)):
       intervention_error = 'Define your intervention as a list with the start_date and end_date of your intervention'
-      raise intervention_error
+      raise TypeError(intervention_error)
+    
+    if len(model_params) < 1:
+        model_parameters = {
+                'changepoint_range': 0.85,
+                'yearly_seasonality': True,
+                'weekly_seasonality': True,
+                'daily_seasonality': False,
+                'holidays': None,
+                'seasonality_mode': 'additive',
+                'changepoint_prior_scale': 0.05,
+                'mcmc_samples': 1000,
+                'interval_width': 1 - alpha}
+        
+        print('Default parameters grid: \n{}',format(model_parameters))
+    else:
+        model_parameters = model_params
+        print('Custom parameters grid: \n{}',format(model_parameters))
     
     pre_intervention = [df.ds.min(),(pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
     post_intervention = [(pd.to_datetime(intervention[0]) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'),df.ds.max()]
@@ -114,19 +132,33 @@ def synth_analysis(df: DataFrame = None,
     print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
     print('Prediction horizon: {} days'.format(prediction_period))
 
-    if seasonality:
-        prophet = Prophet(daily_seasonality=True, 
-                    weekly_seasonality=True, 
-                    changepoint_prior_scale = 0.05, 
-                    changepoint_range = 0.85,
-                    interval_width= 1 - alpha,
-                    seasonality_mode = model_mode)
+    if len(model_params[list(model_params.keys())[0]]) > 1:
+        print('Grid Search Cross-Validation mode:\n')
+        if isinstance(model_params[list(model_params.keys())[0]], list):
+            # Generate all combinations of parameters
+            all_params = [dict(zip(model_params.keys(), v)) for v in itertools.product(*model_params.values())]
+            rmses = []  # Store the RMSEs for each params here
+
+            # Use cross validation to evaluate all parameters
+            for params in all_params:
+                m = Prophet(**params).fit(training_dataframe)  # Fit model with given params
+                df_cv = cross_validation(m, '{} days'.format(cross_validation_steps), disable_tqdm=False , parallel="processes")
+                df_p = performance_metrics(df_cv, rolling_window=1)
+                rmses.append(df_p['rmse'].mean())
+
+            # Find the best parameters
+            tuning_results = pd.DataFrame(all_params)
+            tuning_results['rmse'] = rmses
+            # Python
+            best_params = all_params[np.argmin(rmses)]
+            print(best_params)
+            
+            prophet = Prophet(**best_params)
+        else:
+            raise TypeError("Your parameters on the Grid are not list type")
+    
     else:
-        prophet = Prophet(
-                        changepoint_prior_scale = 0.05, 
-                        changepoint_range = 0.85,
-                        interval_width= 1 - alpha,
-                        seasonality_mode = model_mode)
+        prophet = Prophet(**model_params)
 
     for regressor in regressors:
             prophet.add_regressor(name = regressor)
