@@ -87,27 +87,4 @@ def bootstrap_p_value(
     plus_mape = mean_treatment * (mape+1)
     p_value = len(bootstrapped_means[(bootstrapped_means >= minus_mape) & (bootstrapped_means <= plus_mape)]) / len(simulations)
 
-    # # Calculate the mean of the data
-    # mean = np.mean(control)
-    # mean_treatment = np.mean(treatment)
-
-    # # Shift the simulations and treatment mean to have mean equal to 0
-    # shifted_simulations = [sim - mean for sim in simulations]
-    # shifted_mean_treatment = mean_treatment - mean
-        
-    # bootstrapped_means = np.empty(len(shifted_simulations))
-    
-    # for i in range(len(shifted_simulations)):
-    #     bootstrapped_means[i] = shifted_simulations[i].mean()
-    
-    # lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
-    
-    # p_center = len(bootstrapped_means[(bootstrapped_means >= (- shifted_mean_treatment)) & 
-    #                                         (bootstrapped_means <= shifted_mean_treatment)]) / len(shifted_simulations)
-    
-    # p_mean_negative = len(bootstrapped_means[bootstrapped_means < (- shifted_mean_treatment)]) / len(shifted_simulations)
-    # p_mean_positive = len(bootstrapped_means[bootstrapped_means > shifted_mean_treatment]) / len(shifted_simulations)
-    
-    # p_value = p_mean_negative + p_mean_positive #1 - p_center
-
     return [p_value], [lower, upper], bootstrapped_means

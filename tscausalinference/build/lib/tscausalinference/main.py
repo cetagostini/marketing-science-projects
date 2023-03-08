@@ -222,7 +222,7 @@ class tscausalinference:
         # Show the plot
         sns.despine()
     
-    def summary(self):
+    def summary(self, statistical_significance = 0.05):
         """
         Parameters
         ----------
@@ -252,7 +252,7 @@ class tscausalinference:
             mde = 25
             noise = 'high'
         
-        if self.stadisticts[0] <= 0.01:
+        if self.stadisticts[0] <= statistical_significance:
             summary = """
     Considerations
     --------------
