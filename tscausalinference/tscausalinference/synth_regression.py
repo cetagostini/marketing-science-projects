@@ -132,8 +132,12 @@ def synth_analysis(df: DataFrame = None,
     print('Training period: {} to {}'.format(pre_intervention[0], pre_intervention[1]))
     print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
     print('Prediction horizon: {} days'.format(prediction_period))
-
-    if len(model_parameters[list(model_parameters.keys())[0]]) > 1:
+    
+    condition_int = isinstance(model_parameters[list(model_parameters.keys())[0]], float)
+    condition_float = isinstance(model_parameters[list(model_parameters.keys())[0]], int)
+    condition_str = isinstance(model_parameters[list(model_parameters.keys())[0]], str)
+    
+    if not (condition_int)|(condition_float)|(condition_str):
         print('Grid Search Cross-Validation mode:\n')
         if isinstance(model_parameters[list(model_parameters.keys())[0]], list):
             # Generate all combinations of parameters
