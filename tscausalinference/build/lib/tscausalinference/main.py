@@ -20,41 +20,40 @@ pd.options.mode.chained_assignment = None
 
 class tscausalinference:
     """
-   Time series causal inference using structural causal models (SCM) and a difference-in-differences (DiD) approach.
+    Performs time-series causal inference analysis using synthetic control and bootstrap simulations.
 
-    Parameters
-    ----------
-    data : Union[np.array, DataFrame]
-        A NumPy array or Pandas DataFrame containing the time series data.
-    intervention : Union[List[int], List[str], List[pd.Timestamp]]
-        A list of two elements indicating the start and end dates of the intervention.
-    regressors : list, optional
-        A list of column names representing regressors in the SCM. Default is an empty list.
-    alpha : float, optional
-        The level of significance for the hypothesis test. Default is 0.05.
-    past_window : int, optional
-        The number of days to show in the plot before the start of the intervention. Default is 5.
-    back_window : int, optional
-        The number of days to show in the plot after the end of the intervention. Default is 25.
-    seasonality : bool, optional
-        If True, the model includes a seasonal component. Default is True.
-    n_samples : int, optional
-        The number of bootstrap samples to simulate. Default is 1500.
-    cross_validation_steps : int, optional
-        The number of cross-validation steps used for training. Default is 5.
+    Args:
+        data: A numpy array or pandas DataFrame containing the time-series data.
+        intervention: A list of integers, strings or pandas Timestamps representing the start and end dates of the intervention period.
+        regressors: A list of strings representing the names of columns in the data that are used as regressors in the model.
+        alpha: A float representing the significance level for hypothesis testing.
+        seasonality: A boolean indicating whether to include seasonality in the model.
+        n_samples: An integer representing the number of bootstrap samples to simulate.
+        cross_validation_steps: An integer representing the number of cross-validation steps to use in the synthetic control analysis.
+        model_params: A dictionary containing additional parameters to pass to the model.
 
-    Methods
-    -------
-    plot_intervention()
-        Plots the time series data before and after the intervention with confidence intervals.
-    plot_simulations(simulation_number: int = 10)
-        Plots a specified number of bootstrap simulations.
-    summary()
-        Plots an overview about the results.
-    summary_intervention()
-        Plots an overview of the results during intervention period.
-    seasonal_decompose()
-        Plots the seasonal decomposition of the time series.
+    Attributes:
+        data: A pandas DataFrame containing the pre-intervention and post-intervention time-series data, as well as the predicted values and confidence intervals.
+        pre_int_metrics: A dictionary containing the pre-intervention metrics calculated during the synthetic control analysis.
+        int_metrics: A dictionary containing the intervention metrics calculated during the synthetic control analysis.
+        string_filter: A string representing the filter used to select the intervention period in the data.
+        simulations: A numpy array containing the bootstrap simulations.
+        stadisticts: A dictionary containing the test statistics and p-values for the intervention effect.
+        stats_ranges: A dictionary containing the confidence intervals for the test statistics.
+        samples_means: A dictionary containing the mean values for the control and treatment samples.
+
+    Methods:
+        plot_intervention(past_window=5, back_window=25, figsize=(15, 10)):
+            Plots the pre-intervention and post-intervention time-series data, as well as the predicted values and confidence intervals.
+    
+    Example:
+        >>> from tscausalinference import tscausalinference as tsci
+        >>> import pandas as pd
+        >>> # Load data
+        >>> df = pd.read_csv('mydata.csv')
+        >>> intervention = ['2022-07-04', '2022-07-19']
+        >>> data = tsci(data = df, intervention = intervention)
+        >>> data.plot_intervention() 
     """
 
     def __init__(self,
@@ -97,19 +96,18 @@ class tscausalinference:
  
     def plot_intervention(self, past_window: int = 5, back_window: int = 25, figsize=(15, 10)):
         """
-        The function plot_intervention is a method of the tscausalinference class. It generates a plot showing the predicted and actual values of the target variable around the intervention period, as well as the cumulative effect of the intervention.
+        Plots the pre-intervention and post-intervention time-series data, as well as the predicted values and confidence intervals.
 
-        Parameters
-        ----------
-            No parameters are required.
-        
-        Raises
-        -------
-            No raises are defined.
-        
-        Returns
-        --------
-            No returns are defined, as the method simply generates a plot.
+        Args:
+            past_window: An integer representing the number of days to include after the end of the intervention period.
+            back_window: An integer representing the number of days to include before the start of the intervention period.
+            figsize: A tuple representing the figure size in inches.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         data = self.data.copy()
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=figsize)
@@ -160,12 +158,13 @@ class tscausalinference:
         The plot_simulations() method of tscausalinference class plots the distribution of the mean difference between the treatment and control group based on the bootstrap simulations generated in bootstrap_simulate(). 
         The plot includes a histogram and a box plot of the simulated means.
 
-        Parameters
-        ----------
+        Args:
             Simulation_number (int): The number of simulations to plot. Default is 10.
+            past_window: An integer representing the number of days to include after the end of the intervention period.
+            back_window: An integer representing the number of days to include before the start of the intervention period.
+            figsize: A tuple representing the figure size in inches.
         
-        Raises
-        -------
+        Raises:
             ValueError: if simulation_number is greater than the number of simulations generated.
         """
         data = self.data.copy()
