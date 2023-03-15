@@ -23,40 +23,7 @@ pd.options.mode.chained_assignment = None
 
 class tscausalinference:
     """
-    Performs time-series causal inference analysis using synthetic control and bootstrap simulations.
-
-    Args:
-        data: A numpy array or pandas DataFrame containing the time-series data.
-        intervention: A list of integers, strings or pandas Timestamps representing the start and end dates of the intervention period.
-        regressors: A list of strings representing the names of columns in the data that are used as regressors in the model.
-        alpha: A float representing the significance level for hypothesis testing.
-        seasonality: A boolean indicating whether to include seasonality in the model.
-        n_samples: An integer representing the number of bootstrap samples to simulate.
-        cross_validation_steps: An integer representing the number of cross-validation steps to use in the synthetic control analysis.
-        model_params: A dictionary containing additional parameters to pass to the model.
-
-    Attributes:
-        data: A pandas DataFrame containing the pre-intervention and post-intervention time-series data, as well as the predicted values and confidence intervals.
-        pre_int_metrics: A dictionary containing the pre-intervention metrics calculated during the synthetic control analysis.
-        int_metrics: A dictionary containing the intervention metrics calculated during the synthetic control analysis.
-        string_filter: A string representing the filter used to select the intervention period in the data.
-        simulations: A numpy array containing the bootstrap simulations.
-        stadisticts: A dictionary containing the test statistics and p-values for the intervention effect.
-        stats_ranges: A dictionary containing the confidence intervals for the test statistics.
-        samples_means: A dictionary containing the mean values for the control and treatment samples.
-
-    Methods:
-        plot_intervention(past_window=5, back_window=25, figsize=(15, 10)):
-            Plots the pre-intervention and post-intervention time-series data, as well as the predicted values and confidence intervals.
-    
-    Example:
-        >>> from tscausalinference import tscausalinference as tsci
-        >>> import pandas as pd
-        >>> # Load data
-        >>> df = pd.read_csv('mydata.csv')
-        >>> intervention = ['2022-07-04', '2022-07-19']
-        >>> data = tsci(data = df, intervention = intervention)
-        >>> data.plot_intervention() 
+    A class to perform time series causal inference using Synthetic Controls Methodology.
     """
 
     def __init__(self,
@@ -69,6 +36,22 @@ class tscausalinference:
         cross_validation_steps: int = 5,
         model_params: dict = {}
         ):
+        """
+        Initializes the tscausalinference object with the given parameters.
+
+        Parameters:
+            data (np.array or DataFrame): The time series data.
+            intervention (list): The intervention period in the format ['start_date', 'end_date'].
+            regressors (list, optional): A list of column names to be used as regressors in the model. Defaults to empty list.
+            alpha (float, optional): The level of significance. Defaults to 0.05.
+            seasonality (bool, optional): Whether or not to include seasonality in the model. Defaults to True.
+            n_samples (int, optional): Number of bootstrapping samples. Defaults to 1500.
+            cross_validation_steps (int, optional): Number of cross-validation steps. Defaults to 5.
+            model_params (dict, optional): Additional parameters for the Prophet model. Defaults to empty dictionary.
+
+        Returns:
+            None
+        """
 
         self.data = data
         self.intervention = intervention
@@ -108,6 +91,17 @@ class tscausalinference:
               figsize: tuple = (25, 10),
               simulation_number: int = 10):
         """
+        Plots the time series data.
+
+        Parameters:
+            method (str, optional): The method used to plot the data. Available options are 'intervention', 'simulations', and 'decomposition'. Defaults to 'intervention'.
+            past_window (int, optional): Number of past periods to include in the plot. Defaults to 5.
+            back_window (int, optional): Number of future periods to include in the plot. Defaults to 25.
+            figsize (tuple, optional): The figure size. Defaults to (25, 10).
+            simulation_number (int, optional): The number of simulations to include in the plot if the method is 'simulations'. Defaults to 10.
+
+        Returns:
+            None
         """
         if method not in ['intervention','simulations','decomposition']:
             error = "Your method should be defined as one of these -> ('intervention','simulations','decomposition') "
@@ -125,6 +119,14 @@ class tscausalinference:
     
     def summarization(self, statistical_significance = 0.05, method = 'general'):
         """
+        Generates a summary report for the time series causal inference analysis.
+
+        Parameters:
+            statistical_significance (float, optional): The level of significance for testing statistical significance. Defaults to 0.05.
+            method (str, optional): The method used to generate the summary report. Available options are 'general' and 'detailed'. Defaults to 'general'.
+
+        Returns:
+            None
         """
         if method not in ['general','detailed']:
             error = "Your method should be defined as one of these -> ('general','detailed') "

@@ -35,60 +35,46 @@ def synth_analysis(df: DataFrame = None,
                     model_params: dict = {}
                     ):
     """
-    A function to analyze a dataset using the Prophet library and provide evaluation metrics, response metrics and 
-    intervention metrics. 
+    Fits a Prophet model and computes performance metrics for a given input DataFrame. The function is designed to work with
+    time series data that has a "ds" column with datetime values and a "y" column with numerical values. Optionally, the
+    function can also take a list of regressors as input.
 
     Args:
-    ------
-    df : DataFrame, default None
-        A pandas DataFrame with two columns 'ds' and 'y', containing the date and the corresponding target variable.
-    regressors : list, default []
-        List of column names in df to be used as regressors for the Prophet model.
-    intervention : list, default None
-        A list with two values, containing the start and end date for the intervention period, as a string in the 
-        format 'YYYY-MM-DD'.
-    seasonality : bool, default True
-        Whether or not to include seasonality in the Prophet model.
-    cross_validation_steps : int, default 5
-        The number of days to use for cross-validation.
-    
+        df: A pandas DataFrame with time series data.
+        regressors: A list of strings indicating the names of columns in `df` that should be considered as regressors.
+        intervention: A list containing two strings representing the start date and end date of an intervention period to be
+            analyzed. The dates should be specified in the format "YYYY-MM-DD".
+        cross_validation_steps: An integer representing the number of steps to use for cross-validation.
+        alpha: A float between 0 and 1 representing the confidence interval to use for predictions.
+        model_params: A dictionary containing the parameters to use for the Prophet model.
+
     Returns:
-    -------
-    data : DataFrame
-    prints :
-        - Cross-validation MAPE
-        - Regressor coefficients (if any)
-        - Pre-intervention response metrics (r2, MAE, and MAPE)
-        - Intervention metrics (actual and predicted cumulative, and difference)
+        data: A pandas DataFrame with columns 'ds', 'y', 'yhat', 'yhat_lower', 'yhat_upper' and additional columns for each
+            regressor specified in `regressors`. The DataFrame contains predictions made by the Prophet model and actual
+            values from the input DataFrame.
+        pre_int_metrics: A list of metrics computed for the period before the intervention. Each metric is represented as a
+            list containing two elements: a string with the metric name and a float with its value.
+        int_metrics: A list of metrics computed for the intervention period. Each metric is represented as a list containing
+            two elements: a string with the metric name and a float with its value.
 
     Raises:
-    -------
-    ValueError: 
-        If df is not a DataFrame, or does not contain columns named 'ds' and 'y'.
-        If intervention is not a list with two values.
-        If intervention period is not found in df.
-    TypeError: 
-        If df is None.
-    KeyError:
-        If any regressor in the list is not a column in df.
+        ValueError: If `df` is not a pandas DataFrame or if it does not contain columns named 'ds' and 'y', or if it is
+            empty.
+        TypeError: If `intervention` is None or if `model_params` is empty or if one of the parameters in `model_params`
+            is not of type int, float, or str.
 
-    Examples:
-    --------
-    >>> synth_analysis(df, ['regressor_1', 'regressor_2'], ['2021-01-01', '2021-02-01'], False, 10)
-    Training period: 2019-01-01 to 2021-01-01
-    Test period: 2021-01-01 to 2021-02-01
+    Example:
+        To fit a Prophet model on an example dataframe `df`, run:
 
-    Cross-validation MAPE: 5.83%
-    +---------------+------------------+
-    | Regressor     |   Coefficient    |
-    +===============+==================+
-    | regressor_1   |          0.293   |
-    +---------------+------------------+
-    | regressor_2   |         -0.0133  |
-    +---------------+------------------+
-
+        >>> data, pre_int_metrics, int_metrics = synth_analysis(df=df,
+                                                                regressors=['holiday', 'temperature'],
+                                                                intervention=['2021-01-01', '2021-02-01'],
+                                                                cross_validation_steps=3,
+                                                                alpha=0.1,
+                                                                model_params={'changepoint_range': [0.8, 0.9],
+                                                                              'yearly_seasonality': True,
+                                                                              'weekly_seasonality': True})
     """
-
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a pandas DataFrame")
     elif not set(['ds', 'y']).issubset(df.columns):
