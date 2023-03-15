@@ -27,67 +27,12 @@ logging.getLogger('fbprophet').setLevel(logging.ERROR)
 
 pd.options.mode.chained_assignment = None 
 
-def synth_analysis(df: DataFrame = None, 
-                    regressors: list = [], 
-                    intervention: list = None, 
-                    cross_validation_steps: int = 5,
-                    alpha: float = 0.05,
-                    model_params: dict = {}
-                    ):
-    """
-    A function to analyze a dataset using the Prophet library and provide evaluation metrics, response metrics and 
-    intervention metrics. 
-
-    Args:
-    ------
-    df : DataFrame, default None
-        A pandas DataFrame with two columns 'ds' and 'y', containing the date and the corresponding target variable.
-    regressors : list, default []
-        List of column names in df to be used as regressors for the Prophet model.
-    intervention : list, default None
-        A list with two values, containing the start and end date for the intervention period, as a string in the 
-        format 'YYYY-MM-DD'.
-    seasonality : bool, default True
-        Whether or not to include seasonality in the Prophet model.
-    cross_validation_steps : int, default 5
-        The number of days to use for cross-validation.
-    
-    Returns:
-    -------
-    data : DataFrame
-    prints :
-        - Cross-validation MAPE
-        - Regressor coefficients (if any)
-        - Pre-intervention response metrics (r2, MAE, and MAPE)
-        - Intervention metrics (actual and predicted cumulative, and difference)
-
-    Raises:
-    -------
-    ValueError: 
-        If df is not a DataFrame, or does not contain columns named 'ds' and 'y'.
-        If intervention is not a list with two values.
-        If intervention period is not found in df.
-    TypeError: 
-        If df is None.
-    KeyError:
-        If any regressor in the list is not a column in df.
-
-    Examples:
-    --------
-    >>> synth_analysis(df, ['regressor_1', 'regressor_2'], ['2021-01-01', '2021-02-01'], False, 10)
-    Training period: 2019-01-01 to 2021-01-01
-    Test period: 2021-01-01 to 2021-02-01
-
-    Cross-validation MAPE: 5.83%
-    +---------------+------------------+
-    | Regressor     |   Coefficient    |
-    +===============+==================+
-    | regressor_1   |          0.293   |
-    +---------------+------------------+
-    | regressor_2   |         -0.0133  |
-    +---------------+------------------+
-
-    """
+def sensitivity_analysis(df: DataFrame = pd.DataFrame(), 
+                         training_period = None, 
+                         cross_validation_steps: int = 5, 
+                         alpha: float = 0.05, 
+                         model_params: dict = {}, 
+                         regressors: list = []):
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a pandas DataFrame")
@@ -96,9 +41,9 @@ def synth_analysis(df: DataFrame = None,
     elif df.empty:
         raise TypeError("df is empty")
 
-    if isinstance(intervention, type(None)):
-      intervention_error = 'Define your intervention as a list with the start_date and end_date of your intervention'
-      raise TypeError(intervention_error)
+    if isinstance(training_period, type(None)):
+      training_period_error = 'Define your intervention as a list with the start_date and end_date of your TRAINING PERIOD'
+      raise TypeError(training_period_error)
     
     if len(model_params) < 1:
         model_parameters = {
@@ -116,19 +61,19 @@ def synth_analysis(df: DataFrame = None,
     else:
         model_parameters = model_params.copy()
     
-    pre_intervention = [df.ds.min(),(pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
-    post_intervention = [(pd.to_datetime(intervention[0]) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'),df.ds.max()]
+    start_date = (pd.to_datetime(training_period[0])).strftime('%Y-%m-%d')
+    end_date = (pd.to_datetime(training_period[1])).strftime('%Y-%m-%d')
 
-    training_dataframe = df[(df.ds > pd.to_datetime(pre_intervention[0]))&(df.ds <= pd.to_datetime(pre_intervention[1]))&(df.y > 0)].fillna(0).copy()
+    training_dataframe = df[(df.ds >= pd.to_datetime(start_date))&(df.ds <= pd.to_datetime(end_date))&(df.y > 0)].fillna(0).copy()
     training_dataframe['ds'] = pd.to_datetime(training_dataframe['ds'])
 
-    test_dataset = df[(df.ds > pd.to_datetime(pre_intervention[0]))&(df.ds <= pd.to_datetime(post_intervention[1]))&(df.y > 0)].fillna(0).copy()
+    test_dataset = df[(df.ds >= pd.to_datetime(start_date)) & (df.y > 0)].fillna(0).copy()
     test_dataset['ds'] = pd.to_datetime(test_dataset['ds'])
 
-    prediction_period = len(test_dataset[(test_dataset.ds > pd.to_datetime(intervention[0]))&(test_dataset.ds <= pd.to_datetime(intervention[1]))].index)
+    prediction_period = len(test_dataset[(test_dataset.ds > pd.to_datetime(end_date))&(test_dataset.ds <= test_dataset.ds.max())].index)
 
-    print('Training period: {} to {}'.format(pre_intervention[0], pre_intervention[1]))
-    print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
+    print('Training period: {} to {}'.format(training_period[0], training_period[1]))
+    print('Test period: {} to {}\n'.format((pd.to_datetime(end_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'), test_dataset.ds.max()))
     print('Prediction horizon: {} days'.format(prediction_period))
     
     condition_int = isinstance(model_parameters[list(model_parameters.keys())[0]], float)
@@ -172,7 +117,7 @@ def synth_analysis(df: DataFrame = None,
 
     prophet_predict = prophet.predict(test_dataset)
 
-    df_cv = cross_validation(prophet, horizon = '{} days'.format(cross_validation_steps),disable_tqdm=False)
+    df_cv = cross_validation(prophet, horizon = '{} days'.format(cross_validation_steps), disable_tqdm=False)
     df_p = performance_metrics(df_cv)
 
     model_mape_mean = df_p.mape.mean()
@@ -187,14 +132,7 @@ def synth_analysis(df: DataFrame = None,
     data['yhat'] = data['yhat'].astype(float)
     data['y'] = data['y'].astype(float)
 
-    data['cummulitive_y'] = data['y'].cumsum()
-    data['cummulitive_yhat'] = data['yhat'].cumsum()
-
-    data['point_effects'] = data['y'] - data['yhat']
-    data['cummulitive_effect'] = data['point_effects'].cumsum()
-
-    data['cummulitive_yhat_lower'] = data['yhat_lower'].cumsum()
-    data['cummulitive_yhat_upper'] = data['yhat_upper'].cumsum()
+    data['residuals'] = data['y'] - data['yhat']
 
     # print response
     print(f'\nCross-validation MAPE: {model_mape_mean:.2%}')
@@ -207,29 +145,49 @@ def synth_analysis(df: DataFrame = None,
             table.append([index, *list(row.values)])
 
         print(tabulate(table, headers=['Regressor', 'Regressor Mode', 'Center', 'Coef. Lower', 'Coef', 'Coef. Upper'], tablefmt='grid'))
-
-case
+    
+    training_results = [
+    ['r2', r2_score(y_pred = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].y)],
+    ['MAE', mean_absolute_error(y_pred = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].y)],
+    ['MAPE (%)', mape(y_pred = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].y)],
+    ['Noise (Std)', np.std(data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].y - data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].yhat)]
+    ]
 
     strings_info = """
 +------------------------+
-Pre intervention metrics
+     TRAINING METRICS
 +------------------------+
 {}
     """
 
     print(
         strings_info.format(
-            tabulate(pre_int_metrics, 
+            tabulate(training_results, 
             headers=['Metric', 'Value'], 
             tablefmt='pipe')
         ).strip()
     )
 
-    int_metrics = [
-    ['Actual cumulative', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum()],
-    ['Predicted cumulative:', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum()],
-    ['Difference', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].point_effects.sum()],
-    ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum() -1)*100]
+    test_results = [
+    ['r2', r2_score(y_pred = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].y)],
+    ['MAE', mean_absolute_error(y_pred = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].y)],
+    ['MAPE (%)', mape(y_pred = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].y)],
+    ['Noise (Std)', np.std(data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].y - data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].yhat)]
     ]
+
+    strings_info = """
++------------------------+
+     TEST METRICS
++------------------------+
+{}
+    """
+
+    print(
+        strings_info.format(
+            tabulate(test_results, 
+            headers=['Metric', 'Value'], 
+            tablefmt='pipe')
+        ).strip()
+    )
     
-    return data, pre_int_metrics, int_metrics
+    return data, training_results, test_results

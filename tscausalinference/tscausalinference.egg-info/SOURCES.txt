@@ -7,6 +7,9 @@ tscausalinference/bootstrap.py
 tscausalinference/evaluators.py
 tscausalinference/load_synth_data.py
 tscausalinference/main.py
+tscausalinference/plots.py
+tscausalinference/sensitivity_regression.py
+tscausalinference/summaries.py
 tscausalinference/synth_regression.py
 tscausalinference.egg-info/PKG-INFO
 tscausalinference.egg-info/SOURCES.txt

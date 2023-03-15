@@ -1,8 +1,27 @@
 import pandas as pd
 import numpy as np
+
 from scipy.stats import t
+from scipy.stats import norm
 
 from typing import Union
+
+def prob_in_distribution(data, x):
+  lower_bound, upper_bound = min(data), max(data)
+  
+  mean, std = np.mean(data), np.std(data)
+
+  cdf_lower = norm.cdf(lower_bound, mean, std)
+  cdf_upper = 1 - norm.cdf(upper_bound, mean, std)
+
+  if x < lower_bound or x > upper_bound:
+      return 0.0
+  else:
+      cdf_x = norm.cdf(x, mean, std)
+      if cdf_x <= 0.5:
+          return 2 * (cdf_x - cdf_lower) / (1 - cdf_lower - cdf_upper)
+      else:
+          return 2 * (1 - cdf_x + cdf_lower) / (1 - cdf_lower - cdf_upper)
 
 def bootstrap_simulate(
                     data: Union[np.array, pd.DataFrame] = None, 
@@ -81,10 +100,12 @@ def bootstrap_p_value(
     for i in range(len(simulations)):
         bootstrapped_means[i] = simulations[i].mean()
     
+    bootstrapped_means_min = bootstrapped_means - (mean * mape)
+    bootstrapped_means_max = bootstrapped_means + (mean * mape)
+    bootstrapped_means = np.concatenate([bootstrapped_means_min, bootstrapped_means, bootstrapped_means_max])
+    
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
     
-    minus_mape = mean_treatment * (1-mape)
-    plus_mape = mean_treatment * (mape+1)
-    p_value = len(bootstrapped_means[(bootstrapped_means >= minus_mape) & (bootstrapped_means <= plus_mape)]) / len(simulations)
+    p_value = prob_in_distribution(bootstrapped_means, mean_treatment)
 
     return [p_value], [lower, upper], bootstrapped_means
