@@ -127,6 +127,7 @@ def synth_analysis(df: DataFrame = None,
             # Generate all combinations of parameters
             all_params = [dict(zip(model_parameters.keys(), v)) for v in itertools.product(*model_parameters.values())]
             rmses = []  # Store the RMSEs for each params here
+            print('Total parameters combinations: {}'.format(len(all_params)))
 
             # Use cross validation to evaluate all parameters
             for params in all_params:
