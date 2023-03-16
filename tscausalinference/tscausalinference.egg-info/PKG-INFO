@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.1.4.6
+Version: 0.1.4.7
 Summary: Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects
 Home-page: UNKNOWN
 Author: Carlos Trujillo
@@ -17,20 +17,24 @@ License-File: LICENSE
 
 # tscausalinference
 
-`tscausalinference` is a Python library for performing causal inference analysis over time series data. It uses the counterfactual methodology on top of the Prophet time-series forecasting library, with the help of Bootstrap simulations method for statistical significance testing and manage uncertainty.
+`tscausalinference` is a Python library for performing causal inference analysis over time series data. It uses the counterfactual methodology on top of the Prophet time-series forecasting library, with the help of Bootstrap simulations method for statistical significance testing and to manage uncertainty.
 
 ## How it works
 
-Causal inference is a family of statistical methods used to determine the cause of changes in one variable if the changes occur in a different variable. The tscausalinference library creates synthetic control groups (forecast response) to determine the impact of a real treatment group (actual response). By defining these two groups, the library calculates the counterfactual result (difference between the groups) and determines its statistical significance using the same A/B testing methodology.
+Causal inference is a family of statistical methods used to determine the cause of changes in one variable if the changes occur in a different variable. The tscausalinference library creates synthetic control groups (forecast response) to determine the impact of a real treatment group (actual response). By defining these two groups, the library calculates the counterfactual result (difference between the groups) and determines its statistical significance.
 
-The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. Bootstrap random walks simulations are performed to estimate the sampling distribution of the effect and to test its statistical significance.
+The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. 
+
+To manage the uncertainty of the prediction and to test the statistical significance of the results, the `tscausalinference` library performs Monte Carlo simulations through the Bootstrap method. This method involves resampling a single dataset to create many simulated datasets. The library creates a set of alternative random walks from the synthetic control data, and builds a distribution of each mean from the complete period of the simulation. 
+
+The real mean of the period is then compared against this distribution, and we calculate how extreme this mean value is based on the distribution of **what should happen** using the cumulative distribution function (CDF). This helps us to determine the statistical significance of the effect.
 
 The library works as follows:
 
-1. Build a Prophet model.
-2. Generate control data.
-3. Perform Bootstrap simulations.
-4. Calculate p-values using the Bootstrap simulations.
+1. Build a Prophet model to create a synthetic control group.
+2. Perform Monte Carlo simulations using the Bootstrap method to create a set of alternative random walks from the synthetic control data.
+3. Build a distribution of each mean from the complete period of the simulation.
+4. Compare the real mean of the period against this distribution using the CDF to determine the statistical significance of the effect.
 
 ## Why Prophet?
 
@@ -69,7 +73,7 @@ intervention = ['2022-07-04', '2022-07-19']
 
 data = tsci(data = df, intervention = intervention)
 
-data.plot_intervention()
+data.plot()
 ```
 ![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
 
@@ -104,7 +108,7 @@ memory usage: 14.3 KB
 ```python
 data = tsci(data = df, intervention = intervention)
 
-data.seasonal_decompose()
+data.plot(method = 'decompose')
 ```
 ![seasonal_decompose Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/seasonal_decompose.png)
 
@@ -112,7 +116,7 @@ data.seasonal_decompose()
 ```python
 data = tsci(data = df, intervention = intervention)
 
-data.plot_simulations()
+data.plot(method = 'simulations')
 ```
 ![plot_simulations Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/pvalue.png)
 
@@ -122,7 +126,7 @@ data = tsci(data = df, intervention = intervention, regressors = ['a','b'],
                         alpha = 0.03, n_samples = 10000, cross_validation_steps = 15
                         )
 
-data.summary()
+data.summarization()
 ```
 ```md
     Considerations

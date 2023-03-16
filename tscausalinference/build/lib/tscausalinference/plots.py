@@ -14,18 +14,17 @@ pd.options.mode.chained_assignment = None
 
 def plot_intervention(data, past_window: int = 5, back_window: int = 25, figsize=(15, 10), intervention = None):
         """
-        Plots the pre-intervention and post-intervention time-series data, as well as the predicted values and confidence intervals.
+        Plots the effect of an intervention over time.
 
         Args:
-            past_window: An integer representing the number of days to include after the end of the intervention period.
-            back_window: An integer representing the number of days to include before the start of the intervention period.
-            figsize: A tuple representing the figure size in inches.
+        data (DataFrame): a pandas DataFrame with columns 'ds', 'y', 'yhat', 'yhat_upper', 'yhat_lower', and 'point_effects'.
+        past_window (int): an integer with the number of days to include before the start of the intervention period. Default is 5.
+        back_window (int): an integer with the number of days to include after the end of the intervention period. Default is 25.
+        figsize (tuple): a tuple with the size of the figure to create. Default is (15, 10).
+        intervention (list): a list with two strings representing the start and end date of the intervention in 'yyyy-mm-dd' format.
 
         Returns:
-            None
-
-        Raises:
-            None
+        None
         """
         data = data.copy()
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=figsize)
@@ -74,17 +73,22 @@ def plot_intervention(data, past_window: int = 5, back_window: int = 25, figsize
 def plot_simulations(data, simulation_number: int = 10, past_window: int = 5, back_window: int = 25, figsize=(18, 5), 
                      intervention = None, simulations = None, stadisticts = None, stats_ranges = None, samples_means = None):
         """
-        The plot_simulations() method of tscausalinference class plots the distribution of the mean difference between the treatment and control group based on the bootstrap simulations generated in bootstrap_simulate(). 
-        The plot includes a histogram and a box plot of the simulated means.
+        Plots a graph that shows simulations and prediction variance. Also plots a histogram of bootstrapped means.
 
         Args:
-            Simulation_number (int): The number of simulations to plot. Default is 10.
-            past_window: An integer representing the number of days to include after the end of the intervention period.
-            back_window: An integer representing the number of days to include before the start of the intervention period.
-            figsize: A tuple representing the figure size in inches.
-        
-        Raises:
-            ValueError: if simulation_number is greater than the number of simulations generated.
+        data (pd.DataFrame): The dataset containing the time series
+        simulation_number (int): The number of simulations to plot
+        past_window (int): The number of days before the intervention period to plot the training set
+        back_window (int): The number of days after the intervention period to plot the training set
+        figsize (tuple): The size of the figure
+        intervention (tuple): The start and end date of the intervention period
+        simulations (ndarray): The array containing the simulations
+        stadisticts (list): A list containing statistics values
+        stats_ranges (list): A list containing the minimum and maximum values to plot in the histogram
+        samples_means (ndarray): An array containing the bootstrapped means
+
+        Returns:
+        None
         """
         data = data.copy()
 
@@ -138,6 +142,23 @@ def plot_simulations(data, simulation_number: int = 10, past_window: int = 5, ba
         sns.despine()
 
 def seasonal_decompose(data, intervention, figsize=(18, 12)):
+    """
+    Decompose a time series into seasonal and trend components, and visualize the results.
+
+    Args:
+        data (pd.DataFrame): A time series to decompose. Must contain a column 'ds' with datetime values.
+        intervention (tuple): A tuple with two datetime values representing the start and end of an intervention period.
+        figsize (tuple, optional): The size of the figure to display the subplots. Defaults to (18, 12).
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the 'ds' column is missing from the input DataFrame.
+
+    Example:
+        seasonal_decompose(my_data, ('2020-01-01', '2020-03-31'), figsize=(20, 10))
+    """
     data = data.copy()
     data['ds'] = pd.to_datetime(data['ds'])
     data.set_index('ds', inplace = True)
