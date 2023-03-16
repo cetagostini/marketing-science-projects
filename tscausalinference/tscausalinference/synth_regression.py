@@ -1,7 +1,3 @@
-from prophet import Prophet
-
-from prophet.diagnostics import cross_validation
-from prophet.diagnostics import performance_metrics
 from prophet.utilities import regressor_coefficients
 
 from tabulate import tabulate
@@ -17,6 +13,7 @@ import itertools
 import logging
 
 from tscausalinference.evaluators import mape
+from tscausalinference.regression import prophet_regression
 
 logger = logging.getLogger('cmdstanpy')
 logger.addHandler(logging.NullHandler())
@@ -32,7 +29,8 @@ def synth_analysis(df: DataFrame = None,
                     intervention: list = None, 
                     cross_validation_steps: int = 5,
                     alpha: float = 0.05,
-                    model_params: dict = {}
+                    model_params: dict = {},
+                    verbose = True
                     ):
     """
     Fits a Prophet model and computes performance metrics for a given input DataFrame. The function is designed to work with
@@ -102,77 +100,16 @@ def synth_analysis(df: DataFrame = None,
     else:
         model_parameters = model_params.copy()
     
-    pre_intervention = [df.ds.min(),(pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
-    post_intervention = [(pd.to_datetime(intervention[0]) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'),df.ds.max()]
-
-    training_dataframe = df[(df.ds > pd.to_datetime(pre_intervention[0]))&(df.ds <= pd.to_datetime(pre_intervention[1]))&(df.y > 0)].fillna(0).copy()
-    training_dataframe['ds'] = pd.to_datetime(training_dataframe['ds'])
-
-    test_dataset = df[(df.ds > pd.to_datetime(pre_intervention[0]))&(df.ds <= pd.to_datetime(post_intervention[1]))&(df.y > 0)].fillna(0).copy()
-    test_dataset['ds'] = pd.to_datetime(test_dataset['ds'])
-
-    prediction_period = len(test_dataset[(test_dataset.ds > pd.to_datetime(intervention[0]))&(test_dataset.ds <= pd.to_datetime(intervention[1]))].index)
-
-    print('Training period: {} to {}'.format(pre_intervention[0], pre_intervention[1]))
-    print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
-    print('Prediction horizon: {} days'.format(prediction_period))
+    pre_intervention = [df.ds.min(), (pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
     
-    condition_int = isinstance(model_parameters[list(model_parameters.keys())[0]], float)
-    condition_float = isinstance(model_parameters[list(model_parameters.keys())[0]], int)
-    condition_str = isinstance(model_parameters[list(model_parameters.keys())[0]], str)
-    
-    if not (condition_int)|(condition_float)|(condition_str):
-        print('Grid Search Cross-Validation mode:\n')
-        if isinstance(model_parameters[list(model_parameters.keys())[0]], list):
-            # Generate all combinations of parameters
-            all_params = [dict(zip(model_parameters.keys(), v)) for v in itertools.product(*model_parameters.values())]
-            rmses = []  # Store the RMSEs for each params here
-            print('Total parameters combinations: {}'.format(len(all_params)))
-
-            # Use cross validation to evaluate all parameters
-            for params in all_params:
-                m = Prophet(**params).fit(training_dataframe)  # Fit model with given params
-                df_cv = cross_validation(m, '{} days'.format(cross_validation_steps), disable_tqdm=False , parallel="processes")
-                df_p = performance_metrics(df_cv, rolling_window=1)
-                rmses.append(df_p['rmse'].mean())
-
-            # Find the best parameters
-            tuning_results = pd.DataFrame(all_params)
-            tuning_results['rmse'] = rmses
-            # Python
-            best_params = all_params[np.argmin(rmses)]
-            print(best_params)
-            
-            prophet = Prophet(**best_params)
-        else:
-            raise TypeError("Your parameters on the Grid are not list type")
-    
-    else:
-        model_parameters.update({'interval_width': 1 - alpha})
-        print('Custom parameters grid: \n{}',format(model_parameters))
-        prophet = Prophet(**model_parameters)
-
-    for regressor in regressors:
-            prophet.add_regressor(name = regressor)
-    
-    prophet.fit(training_dataframe)
-
-    prophet_predict = prophet.predict(test_dataset)
-
-    df_cv = cross_validation(prophet, horizon = '{} days'.format(cross_validation_steps),disable_tqdm=False)
-    df_p = performance_metrics(df_cv)
-
-    model_mape_mean = df_p.mape.mean()
-
-    df['ds'] = pd.to_datetime(df['ds'])
-
-    data = pd.merge(
-        prophet_predict[['ds','yhat', 'yhat_lower', 'yhat_upper', 'trend']+list(prophet.seasonalities.keys())], 
-        df[["ds", "y"]], how='left', on='ds'
-        )
-
-    data['yhat'] = data['yhat'].astype(float)
-    data['y'] = data['y'].astype(float)
+    data = prophet_regression(
+            df = df, 
+            intervention = intervention, 
+            cross_validation_steps = cross_validation_steps, 
+            alpha = alpha, 
+            model_params = model_parameters, 
+            regressors = regressors,
+            verbose = verbose)
 
     data['cummulitive_y'] = data['y'].cumsum()
     data['cummulitive_yhat'] = data['yhat'].cumsum()
@@ -182,18 +119,6 @@ def synth_analysis(df: DataFrame = None,
 
     data['cummulitive_yhat_lower'] = data['yhat_lower'].cumsum()
     data['cummulitive_yhat_upper'] = data['yhat_upper'].cumsum()
-
-    # print response
-    print(f'\nCross-validation MAPE: {model_mape_mean:.2%}')
-    print('\nSeasons detected: {}'.format(list(prophet.seasonalities.keys())))
-    if len(regressors) >= 1:
-        regressor_df = regressor_coefficients(prophet)
-        # format table
-        table = []
-        for index, row in regressor_df.iterrows():
-            table.append([index, *list(row.values)])
-
-        print(tabulate(table, headers=['Regressor', 'Regressor Mode', 'Center', 'Coef. Lower', 'Coef', 'Coef. Upper'], tablefmt='grid'))
     
     pre_int_metrics = [
     ['r2', r2_score(y_pred = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(pre_intervention[0]))&(data.ds <= pd.to_datetime(pre_intervention[1]))&(data.y > 0)].y)],
@@ -204,18 +129,18 @@ def synth_analysis(df: DataFrame = None,
 
     strings_info = """
 +------------------------+
-Pre intervention metrics
+ Pre intervention metrics
 +------------------------+
 {}
     """
-
-    print(
-        strings_info.format(
-            tabulate(pre_int_metrics, 
-            headers=['Metric', 'Value'], 
-            tablefmt='pipe')
-        ).strip()
-    )
+    if verbose:
+        print(
+            strings_info.format(
+                tabulate(pre_int_metrics, 
+                headers=['Metric', 'Value'], 
+                tablefmt='pipe')
+            ).strip()
+        )
 
     int_metrics = [
     ['Actual cumulative', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum()],

@@ -188,26 +188,32 @@ class synth_dataframe:
         return self.df
 
 class sensitivity:
+
     def __init__(self,
                 df: DataFrame = pd.DataFrame(), 
-                training_period = None, 
+                test_period = None, 
                 cross_validation_steps: int = 5, 
                 alpha: float = 0.05, 
                 model_params: dict = {}, 
-                regressors: list = []):
+                regressors: list = [],
+                verbose: bool = False,
+                n_samples = 1000):
     
         self.df = df
-        self.training_period = training_period
+        self.test_period = test_period
         self.cross_validation_steps = cross_validation_steps
         self.alpha = alpha
         self.model_params = model_params
         self.regressors = regressors
 
-        self.data, self.training, self.test = sensitivity_analysis(
-            df = df, 
-            regressors = regressors, 
-            training_period = training_period, 
-            cross_validation_steps = cross_validation_steps,
-            alpha = alpha,
-            model_params = model_params
-            )
+        self.analysis = sensitivity_analysis(df = df, 
+                         test_period = test_period, 
+                         cross_validation_steps = cross_validation_steps, 
+                         alpha = alpha, 
+                         model_params = model_params, 
+                         regressors= regressors,
+                         verbose = verbose,
+                         n_samples = n_samples)
+    
+    def data_analysis(self):
+        return self.analysis

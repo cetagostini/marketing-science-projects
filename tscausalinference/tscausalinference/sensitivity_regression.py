@@ -1,9 +1,3 @@
-from prophet import Prophet
-
-from prophet.diagnostics import cross_validation
-from prophet.diagnostics import performance_metrics
-from prophet.utilities import regressor_coefficients
-
 from tabulate import tabulate
 from sklearn.metrics import r2_score, mean_absolute_error
 
@@ -11,12 +5,12 @@ import pandas as pd
 from pandas import DataFrame
 
 import numpy as np
-
-import itertools
-
 import logging
 
 from tscausalinference.evaluators import mape
+from tscausalinference.regression import prophet_regression
+from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
+from tscausalinference.synth_regression import synth_analysis
 
 logger = logging.getLogger('cmdstanpy')
 logger.addHandler(logging.NullHandler())
@@ -27,12 +21,13 @@ logging.getLogger('fbprophet').setLevel(logging.ERROR)
 
 pd.options.mode.chained_assignment = None 
 
-def sensitivity_analysis(df: DataFrame = pd.DataFrame(), 
+def training_model(df: DataFrame = pd.DataFrame(), 
                          training_period = None, 
                          cross_validation_steps: int = 5, 
                          alpha: float = 0.05, 
                          model_params: dict = {}, 
-                         regressors: list = []):
+                         regressors: list = [],
+                         verbose: bool = True):
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a pandas DataFrame")
@@ -63,88 +58,17 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
     
     start_date = (pd.to_datetime(training_period[0])).strftime('%Y-%m-%d')
     end_date = (pd.to_datetime(training_period[1])).strftime('%Y-%m-%d')
-
-    training_dataframe = df[(df.ds >= pd.to_datetime(start_date))&(df.ds <= pd.to_datetime(end_date))&(df.y > 0)].fillna(0).copy()
-    training_dataframe['ds'] = pd.to_datetime(training_dataframe['ds'])
-
-    test_dataset = df[(df.ds >= pd.to_datetime(start_date)) & (df.y > 0)].fillna(0).copy()
-    test_dataset['ds'] = pd.to_datetime(test_dataset['ds'])
-
-    prediction_period = len(test_dataset[(test_dataset.ds > pd.to_datetime(end_date))&(test_dataset.ds <= test_dataset.ds.max())].index)
-
-    print('Training period: {} to {}'.format(training_period[0], training_period[1]))
-    print('Test period: {} to {}\n'.format((pd.to_datetime(end_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'), test_dataset.ds.max()))
-    print('Prediction horizon: {} days'.format(prediction_period))
     
-    condition_int = isinstance(model_parameters[list(model_parameters.keys())[0]], float)
-    condition_float = isinstance(model_parameters[list(model_parameters.keys())[0]], int)
-    condition_str = isinstance(model_parameters[list(model_parameters.keys())[0]], str)
-    
-    if not (condition_int)|(condition_float)|(condition_str):
-        print('Grid Search Cross-Validation mode:\n')
-        if isinstance(model_parameters[list(model_parameters.keys())[0]], list):
-            # Generate all combinations of parameters
-            all_params = [dict(zip(model_parameters.keys(), v)) for v in itertools.product(*model_parameters.values())]
-            rmses = []  # Store the RMSEs for each params here
-
-            # Use cross validation to evaluate all parameters
-            for params in all_params:
-                m = Prophet(**params).fit(training_dataframe)  # Fit model with given params
-                df_cv = cross_validation(m, '{} days'.format(cross_validation_steps), disable_tqdm=False , parallel="processes")
-                df_p = performance_metrics(df_cv, rolling_window=1)
-                rmses.append(df_p['rmse'].mean())
-
-            # Find the best parameters
-            tuning_results = pd.DataFrame(all_params)
-            tuning_results['rmse'] = rmses
-            # Python
-            best_params = all_params[np.argmin(rmses)]
-            print(best_params)
-            
-            prophet = Prophet(**best_params)
-        else:
-            raise TypeError("Your parameters on the Grid are not list type")
-    
-    else:
-        model_parameters.update({'interval_width': 1 - alpha})
-        print('Custom parameters grid: \n{}',format(model_parameters))
-        prophet = Prophet(**model_parameters)
-
-    for regressor in regressors:
-            prophet.add_regressor(name = regressor)
-    
-    prophet.fit(training_dataframe)
-
-    prophet_predict = prophet.predict(test_dataset)
-
-    df_cv = cross_validation(prophet, horizon = '{} days'.format(cross_validation_steps), disable_tqdm=False)
-    df_p = performance_metrics(df_cv)
-
-    model_mape_mean = df_p.mape.mean()
-
-    df['ds'] = pd.to_datetime(df['ds'])
-
-    data = pd.merge(
-        prophet_predict[['ds','yhat', 'yhat_lower', 'yhat_upper', 'trend']+list(prophet.seasonalities.keys())], 
-        df[["ds", "y"]], how='left', on='ds'
-        )
-
-    data['yhat'] = data['yhat'].astype(float)
-    data['y'] = data['y'].astype(float)
+    data = prophet_regression(
+            df = df, 
+            intervention = training_period, 
+            cross_validation_steps = cross_validation_steps, 
+            alpha = alpha, 
+            model_params = model_parameters, 
+            regressors = regressors,
+            verbose = verbose)
 
     data['residuals'] = data['y'] - data['yhat']
-
-    # print response
-    print(f'\nCross-validation MAPE: {model_mape_mean:.2%}')
-    print('\nSeasons detected: {}'.format(list(prophet.seasonalities.keys())))
-    if len(regressors) >= 1:
-        regressor_df = regressor_coefficients(prophet)
-        # format table
-        table = []
-        for index, row in regressor_df.iterrows():
-            table.append([index, *list(row.values)])
-
-        print(tabulate(table, headers=['Regressor', 'Regressor Mode', 'Center', 'Coef. Lower', 'Coef', 'Coef. Upper'], tablefmt='grid'))
     
     training_results = [
     ['r2', r2_score(y_pred = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds >= pd.to_datetime(start_date))&(data.ds <= pd.to_datetime(end_date))&(data.y > 0)].y)],
@@ -160,13 +84,14 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
 {}
     """
 
-    print(
-        strings_info.format(
-            tabulate(training_results, 
-            headers=['Metric', 'Value'], 
-            tablefmt='pipe')
-        ).strip()
-    )
+    if verbose:
+        print(
+            strings_info.format(
+                tabulate(training_results, 
+                headers=['Metric', 'Value'], 
+                tablefmt='pipe')
+            ).strip()
+        )
 
     test_results = [
     ['r2', r2_score(y_pred = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].yhat, y_true = data[(data.ds > pd.to_datetime(end_date))&(data.y > 0)].y)],
@@ -181,13 +106,77 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
 +------------------------+
 {}
     """
-
-    print(
-        strings_info.format(
-            tabulate(test_results, 
-            headers=['Metric', 'Value'], 
-            tablefmt='pipe')
-        ).strip()
-    )
+    if verbose:
+        print(
+            strings_info.format(
+                tabulate(test_results, 
+                headers=['Metric', 'Value'], 
+                tablefmt='pipe')
+            ).strip()
+        )
     
-    return data, training_results, test_results
+    return data, training_results, test_results, model_parameters
+
+def sensitivity_analysis(df: DataFrame = pd.DataFrame(), 
+                         test_period = None, 
+                         cross_validation_steps: int = 5, 
+                         alpha: float = 0.05, 
+                         model_params: dict = {}, 
+                         regressors: list = [],
+                         verbose: bool = False,
+                         n_samples = 1000):
+        
+        df_temp = df.copy()
+        
+        data, training, test, model_parameters = training_model(
+            df = df_temp, 
+            regressors = regressors, 
+            training_period = test_period, 
+            cross_validation_steps = cross_validation_steps,
+            alpha = alpha,
+            model_params = model_params,
+            verbose = verbose
+            )
+        
+        effects = np.linspace(1.0, 2.0, 10)
+        e_dataframe = pd.DataFrame()
+    
+        data, pre_int_metrics, int_metrics = synth_analysis(
+            df = df_temp, 
+            regressors = regressors, 
+            intervention = test_period, 
+            cross_validation_steps = cross_validation_steps,
+            alpha = alpha,
+            model_params = model_parameters,
+            verbose = True
+            )
+
+        for effect in effects:
+            temp_test = data.copy()
+
+            # create a boolean mask for the rows in the test period
+            test_mask = (temp_test['ds'] >= pd.to_datetime(test_period[0])) & (temp_test['ds'] <= pd.to_datetime(test_period[1]))
+
+            # multiply 'y' by 1.1 in the test period
+            temp_test.loc[test_mask, 'y'] *= effect
+            
+            simulations = bootstrap_simulate(
+                    data = temp_test[test_mask].yhat, 
+                    n_samples = n_samples, 
+                    n_steps = len(temp_test[test_mask].index)
+                    )
+            
+            stadisticts, stats_ranges, samples_means = bootstrap_p_value(control = temp_test[test_mask].yhat, 
+                                                                                        treatment = temp_test[test_mask].y, 
+                                                                                        simulations = simulations,
+                                                                                        mape = abs(round(pre_int_metrics[2][1],6))/100
+                                                                                        )
+            
+            results_df = pd.DataFrame({'injected_effect':effect, 'model':model_parameters, 'pvalue':stadisticts[0], 'train': training, 
+                                       'test_': test, 'intervention': int_metrics, 'confidence_interval':stats_ranges,
+                                       'mean_intervention': temp_test[test_mask].y.mean(),'mean_pre_intervention': temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean() 
+                                       })
+            
+            e_dataframe = pd.concat([e_dataframe, results_df])
+
+        return e_dataframe
