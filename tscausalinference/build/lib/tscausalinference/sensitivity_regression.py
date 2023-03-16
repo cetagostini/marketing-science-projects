@@ -172,9 +172,9 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                                                                                         mape = abs(round(pre_int_metrics[2][1],6))/100
                                                                                         )
             
-            results_df = pd.DataFrame({'injected_effect':effect, 'model':model_parameters, 'pvalue':stadisticts[0], 'train': training, 
-                                       'test_': test, 'intervention': int_metrics, 'confidence_interval':stats_ranges,
-                                       'mean_intervention': temp_test[test_mask].y.mean(),'mean_pre_intervention': temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean() 
+            results_df = pd.DataFrame({'injected_effect':[round(effect,2)], 'model':[model_parameters], 'pvalue':[stadisticts[0]], 'train': [training], 
+                                       'test_': [test], 'intervention': [int_metrics], 'confidence_interval':[stats_ranges],
+                                       'mean_intervention': [temp_test[test_mask].y.mean()],'mean_pre_intervention': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()] 
                                        })
             
             e_dataframe = pd.concat([e_dataframe, results_df])
