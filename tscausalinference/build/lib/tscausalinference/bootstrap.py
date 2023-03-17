@@ -83,9 +83,13 @@ def bootstrap_simulate(
         walk -= walk[0]
         walk *= bootstrap_data.std() / walk.std()
         walk += bootstrap_data.mean()
+
+        # Smooth the simulated random walk using a moving average filter
+        smoother = 2  # the amount of smoothing on either side
+        walk_smoothed = np.convolve(walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
         
         # Save random walk as one of the bootstrap samples
-        bootstrap_samples[i] = walk
+        bootstrap_samples[i] = walk_smoothed
     
     return bootstrap_samples
     
