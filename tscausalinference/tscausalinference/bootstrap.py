@@ -86,8 +86,14 @@ def bootstrap_simulate(
 
         # Smooth the simulated random walk using a moving average filter
         smoother = 2  # the amount of smoothing on either side
-        walk_smoothed = np.convolve(walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
         
+        # Pad the beginning and end of the input array
+        pad_size = smoother
+        padded_walk = np.pad(walk, (pad_size, pad_size), mode='edge')
+        
+        # Apply the smoothing filter
+        walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
+
         # Save random walk as one of the bootstrap samples
         bootstrap_samples[i] = walk_smoothed
     
