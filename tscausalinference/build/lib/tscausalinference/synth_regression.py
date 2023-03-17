@@ -30,7 +30,8 @@ def synth_analysis(df: DataFrame = None,
                     cross_validation_steps: int = 5,
                     alpha: float = 0.05,
                     model_params: dict = {},
-                    verbose = True
+                    verbose = True,
+                    model_type = 'gam'
                     ):
     """
     Fits a Prophet model and computes performance metrics for a given input DataFrame. The function is designed to work with
@@ -93,10 +94,7 @@ def synth_analysis(df: DataFrame = None,
                 'holidays': None,
                 'seasonality_mode': 'additive',
                 'changepoint_prior_scale': 0.05,
-                'mcmc_samples': 1000,
                 'interval_width': 1 - alpha}
-        
-        print('Default parameters grid: \n{}',format(model_parameters))
     else:
         model_parameters = model_params.copy()
     
@@ -109,7 +107,8 @@ def synth_analysis(df: DataFrame = None,
             alpha = alpha, 
             model_params = model_parameters, 
             regressors = regressors,
-            verbose = verbose)
+            verbose = verbose,
+            model_type = model_type)
 
     data['cummulitive_y'] = data['y'].cumsum()
     data['cummulitive_yhat'] = data['yhat'].cumsum()

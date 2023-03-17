@@ -34,7 +34,8 @@ class tscausalinference:
         seasonality: bool = True,
         n_samples: int = 1500,
         cross_validation_steps: int = 5,
-        model_params: dict = {}
+        model_params: dict = {},
+        model_type = 'gam'
         ):
         """
         Initializes the tscausalinference object with the given parameters.
@@ -61,6 +62,7 @@ class tscausalinference:
         self.n_samples = n_samples
         self.cross_validation_steps = cross_validation_steps
         self.model_params = model_params
+        self.model_type = model_type
 
         self.data, self.pre_int_metrics, self.int_metrics = synth_analysis(
             df = data, 
@@ -68,7 +70,8 @@ class tscausalinference:
             intervention = intervention, 
             cross_validation_steps = cross_validation_steps,
             alpha = alpha,
-            model_params = model_params
+            model_params = model_params,
+            model_type = model_type
             )
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
@@ -197,7 +200,8 @@ class sensitivity:
                 model_params: dict = {}, 
                 regressors: list = [],
                 verbose: bool = False,
-                n_samples = 1000):
+                n_samples = 1000,
+                model_type='gam'):
     
         self.df = df
         self.test_period = test_period
@@ -205,6 +209,7 @@ class sensitivity:
         self.alpha = alpha
         self.model_params = model_params
         self.regressors = regressors
+        self.model_type = model_type
 
         self.analysis = sensitivity_analysis(df = df, 
                          test_period = test_period, 
@@ -213,7 +218,8 @@ class sensitivity:
                          model_params = model_params, 
                          regressors= regressors,
                          verbose = verbose,
-                         n_samples = n_samples)
+                         n_samples = n_samples,
+                         model_type = model_type)
     
     def data_analysis(self):
         return self.analysis

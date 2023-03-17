@@ -24,7 +24,8 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
                          alpha: float = 0.05, 
                          model_params: dict = {}, 
                          regressors: list = [],
-                         verbose = True):
+                         verbose = True,
+                         model_type = 'gam'):
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a pandas DataFrame")
@@ -46,7 +47,6 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
                 'holidays': None,
                 'seasonality_mode': 'additive',
                 'changepoint_prior_scale': 0.05,
-                'mcmc_samples': 1000,
                 'interval_width': 1 - alpha}
         
         print('Default parameters grid: \n{}',format(model_parameters))
@@ -101,7 +101,10 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
     else:
         model_parameters.update({'interval_width': 1 - alpha})
         print('Custom parameters grid: \n{}',format(model_parameters))
-        prophet = Prophet(**model_parameters)
+        if model_type == 'bayesian':
+            model_parameters.update({'mcmc_samples': 1000})
+        else:
+            prophet = Prophet(**model_parameters)
 
     for regressor in regressors:
             prophet.add_regressor(name = regressor)
