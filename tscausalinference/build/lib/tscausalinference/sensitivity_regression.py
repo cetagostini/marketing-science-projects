@@ -160,8 +160,7 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             test_mask = (temp_test['ds'] >= pd.to_datetime(test_period[0])) & (temp_test['ds'] <= pd.to_datetime(test_period[1]))
             
             #mask last 90 days
-            rolling_mask = (temp_test['ds'] <= (pd.to_datetime(test_period[0]) - pd.Timedelta(days = 89)))
-
+            rolling_mask = (temp_test['ds'] >= (pd.to_datetime(test_period[0]) - pd.Timedelta(days = 89))) & (temp_test['ds'] < pd.to_datetime(test_period[0]))
             # multiply 'y' by 1.1 in the test period
             temp_test.loc[test_mask, 'y'] *= effect
             
@@ -178,7 +177,7 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                                                                                         )
             
             results_df = pd.DataFrame({'injected_effect':[round(effect, 2)], 'model':[model_parameters], 'pvalue':[stadisticts[0]], 'train': [training], 
-                                       'test_': [test], 'intervention': [int_metrics], 'confidence_interval':[temp_test.yhat_lower().sum(), temp_test.yhat_upper.sum()],
+                                       'test_': [test], 'intervention': [int_metrics], 'confidence_interval':[temp_test.yhat_lower.sum(), temp_test.yhat_upper.sum()],
                                        'y_intervention': [temp_test[test_mask].y.sum()], 'mean_intervention': [temp_test[test_mask].y.mean()],
                                        'last90days_mean': [temp_test[rolling_mask].y.mean()], 'historical_mean': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()] 
                                        })
