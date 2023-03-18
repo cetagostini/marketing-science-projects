@@ -212,7 +212,7 @@ class sensitivity:
         self.regressors = regressors
         self.model_type = model_type
 
-        self.analysis = sensitivity_analysis(df = df, 
+        self.analysis, self.hyper_parameters = sensitivity_analysis(df = df, 
                          test_period = test_period, 
                          cross_validation_steps = cross_validation_steps, 
                          alpha = alpha, 
@@ -228,3 +228,6 @@ class sensitivity:
     def plot(self, figsize=(25, 8)):
         area = mde_area(y = self.analysis.pvalue.values, x = self.analysis.index)
         return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
+    
+    def model_best_parameters(self):
+        return self.hyper_parameters

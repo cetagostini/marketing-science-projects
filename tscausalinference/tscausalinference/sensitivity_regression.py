@@ -59,7 +59,7 @@ def training_model(df: DataFrame = pd.DataFrame(),
     start_date = (pd.to_datetime(training_period[0])).strftime('%Y-%m-%d')
     end_date = (pd.to_datetime(training_period[1])).strftime('%Y-%m-%d')
     
-    data = prophet_regression(
+    data, paremeters = prophet_regression(
             df = df, 
             intervention = training_period, 
             cross_validation_steps = cross_validation_steps, 
@@ -116,7 +116,7 @@ def training_model(df: DataFrame = pd.DataFrame(),
             ).strip()
         )
     
-    return data, training_results, test_results, model_parameters
+    return data, training_results, test_results, paremeters
 
 def sensitivity_analysis(df: DataFrame = pd.DataFrame(), 
                          test_period = None, 
@@ -137,21 +137,12 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             cross_validation_steps = cross_validation_steps,
             alpha = alpha,
             model_params = model_params,
-            verbose = verbose
+            verbose = verbose,
+            model_type = model_type
             )
         
         effects = np.linspace(1.0, 2.0, 30)
         e_dataframe = pd.DataFrame()
-    
-        data, pre_int_metrics, int_metrics = synth_analysis(
-            df = df_temp, 
-            regressors = regressors, 
-            intervention = test_period, 
-            cross_validation_steps = cross_validation_steps,
-            alpha = alpha,
-            model_params = model_parameters,
-            verbose = True
-            )
 
         for effect in effects:
             temp_test = data.copy()
@@ -161,6 +152,7 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             
             #mask last 90 days
             rolling_mask = (temp_test['ds'] >= (pd.to_datetime(test_period[0]) - pd.Timedelta(days = 89))) & (temp_test['ds'] < pd.to_datetime(test_period[0]))
+            
             # multiply 'y' by 1.1 in the test period
             temp_test.loc[test_mask, 'y'] *= effect
             
@@ -173,22 +165,21 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             stadisticts, stats_ranges, samples_means = bootstrap_p_value(control = temp_test[test_mask].yhat, 
                                                                                         treatment = temp_test[test_mask].y, 
                                                                                         simulations = simulations,
-                                                                                        mape = abs(round(pre_int_metrics[2][1],6))/100
+                                                                                        mape = abs(round(test[2][1],6))/100
                                                                                         )
             
             results_df = pd.DataFrame({'injected_effect': [round(effect, 2)],
                            'model': [model_parameters],
                            'pvalue': [stadisticts[0]],
                            'train': [training], 
-                           'test_': [test],
-                           'intervention': [int_metrics],
+                           'test': [test],
                            'ci_lower': [temp_test.yhat_lower.sum()],
                            'ci_upper': [temp_test.yhat_upper.sum()],
                            'y_intervention': [temp_test[test_mask].y.sum()],
-                           'mean_intervention': [temp_test[test_mask].y.mean()],
-                           'last90days_mean': [temp_test[rolling_mask].y.mean()],
-                           'historical_mean': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()]})
+                           'y_intervention_mean': [temp_test[test_mask].y.mean()],
+                           'y_last90days_mean': [temp_test[rolling_mask].y.mean()],
+                           'y_historical_mean': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()]})
             
             e_dataframe = pd.concat([e_dataframe, results_df])
 
-        return e_dataframe.set_index('injected_effect')
+        return e_dataframe.set_index('injected_effect'), model_parameters
