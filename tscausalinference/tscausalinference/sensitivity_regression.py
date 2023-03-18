@@ -176,11 +176,18 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                                                                                         mape = abs(round(pre_int_metrics[2][1],6))/100
                                                                                         )
             
-            results_df = pd.DataFrame({'injected_effect':[round(effect, 2)], 'model':[model_parameters], 'pvalue':[stadisticts[0]], 'train': [training], 
-                                       'test_': [test], 'intervention': [int_metrics], 'confidence_interval':[temp_test.yhat_lower.sum(), temp_test.yhat_upper.sum()],
-                                       'y_intervention': [temp_test[test_mask].y.sum()], 'mean_intervention': [temp_test[test_mask].y.mean()],
-                                       'last90days_mean': [temp_test[rolling_mask].y.mean()], 'historical_mean': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()] 
-                                       })
+            results_df = pd.DataFrame({'injected_effect': [round(effect, 2)],
+                           'model': [model_parameters],
+                           'pvalue': [stadisticts[0]],
+                           'train': [training], 
+                           'test_': [test],
+                           'intervention': [int_metrics],
+                           'ci_lower': [temp_test.yhat_lower.sum()],
+                           'ci_upper': [temp_test.yhat_upper.sum()],
+                           'y_intervention': [temp_test[test_mask].y.sum()],
+                           'mean_intervention': [temp_test[test_mask].y.mean()],
+                           'last90days_mean': [temp_test[rolling_mask].y.mean()],
+                           'historical_mean': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()]})
             
             e_dataframe = pd.concat([e_dataframe, results_df])
 
