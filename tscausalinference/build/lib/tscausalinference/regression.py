@@ -94,7 +94,8 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
             best_params = all_params[np.argmin(rmses)]
             print(best_params)
             
-            prophet = Prophet(**best_params)
+            model_parameters = best_params.copy()
+            prophet = Prophet(**model_parameters)
         else:
             raise TypeError("Your parameters on the Grid are not list type")
     
@@ -142,4 +143,4 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
         if verbose:
             print(tabulate(table, headers=['Regressor', 'Regressor Mode', 'Center', 'Coef. Lower', 'Coef', 'Coef. Upper'], tablefmt='grid'))    
 
-    return data
+    return data, model_parameters

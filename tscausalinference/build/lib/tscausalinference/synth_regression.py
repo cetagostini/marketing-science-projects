@@ -100,15 +100,15 @@ def synth_analysis(df: DataFrame = None,
     
     pre_intervention = [df.ds.min(), (pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
     
-    data = prophet_regression(
-            df = df, 
-            intervention = intervention, 
-            cross_validation_steps = cross_validation_steps, 
-            alpha = alpha, 
-            model_params = model_parameters, 
-            regressors = regressors,
-            verbose = verbose,
-            model_type = model_type)
+    data, parameters = prophet_regression(
+                                df = df, 
+                                intervention = intervention, 
+                                cross_validation_steps = cross_validation_steps, 
+                                alpha = alpha, 
+                                model_params = model_parameters, 
+                                regressors = regressors,
+                                verbose = verbose,
+                                model_type = model_type)
 
     data['cummulitive_y'] = data['y'].cumsum()
     data['cummulitive_yhat'] = data['yhat'].cumsum()
