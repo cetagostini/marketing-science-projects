@@ -182,4 +182,4 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             
             e_dataframe = pd.concat([e_dataframe, results_df])
 
-        return e_dataframe.set_index('injected_effect')
+        return e_dataframe.set_index('injected_effect'), model_parameters
