@@ -13,8 +13,9 @@ from tscausalinference.synth_regression import synth_analysis
 from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
 from tscausalinference.load_synth_data import create_synth_dataframe
 from tscausalinference.sensitivity_regression import sensitivity_analysis
-from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose
+from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose, sensitivity_curve
 from tscausalinference.summaries import summary, summary_intervention
+from tscausalinference.evaluators import mde_area
 
 sns.set_theme()
 sns.set_context("paper")
@@ -223,3 +224,7 @@ class sensitivity:
     
     def data_analysis(self):
         return self.analysis
+    
+    def plot(self, figsize=(25, 8)):
+        area = mde_area(y = self.analysis.pvalue.values, x = self.analysis.index)
+        return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
