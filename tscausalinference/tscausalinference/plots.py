@@ -6,6 +6,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from scipy.interpolate import make_interp_spline, BSpline
+
 sns.set_theme()
 sns.set_context("paper")
 
@@ -174,3 +176,42 @@ def seasonal_decompose(data, intervention, figsize=(18, 12)):
     
     # Show the plot
     sns.despine()
+
+def sensitivity_curve(arr1 = None, arr2 = None, area = None, figsize=(25, 8)):
+    # create the plot
+    fig, ax = plt.subplots(figsize = figsize)
+
+    # plot the markers
+    sns.scatterplot(x=arr1, y=arr2, ax=ax, s=100, color='grey', label='P-Value')
+
+    # interpolate the line using a spline
+    x_new = np.linspace(arr1.min(), arr1.max(), 300)
+    spl = make_interp_spline(arr1, arr2, k=3)  # k=3 for cubic spline
+    y_smooth = spl(x_new)
+
+    # plot the interpolated line
+    ax.plot(x_new, y_smooth, color='violet', linewidth=3, label='Effect')
+
+    bbox_props = dict(boxstyle='round,pad=0.5', fc='white', ec='gray', lw=1) # set the box properties
+    ax.text(1.0, 0.4, f'Sensitivity: {area:.2f}', fontsize=14, bbox=bbox_props) # add the text box annotation to the plot
+
+    # add axis labels and a title
+    ax.set_xlabel('Estimated Effect', fontsize=14)
+    ax.set_ylabel('P-Value', fontsize=14)
+    ax.set_title('Minimum Detectable Effect over Time Series', fontsize=18)
+
+    # add a legend
+    ax.legend(fontsize=12)
+
+    # add x-axis and y-axis ticks and tick labels
+    ax.tick_params(axis='both', labelsize=12)
+    ax.xaxis.set_major_locator(plt.MultipleLocator(0.1))
+    ax.xaxis.set_minor_locator(plt.MultipleLocator(0.05))
+
+    ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
+    ax.yaxis.set_minor_locator(plt.MultipleLocator(0.05))
+
+    idx = np.argmax(arr2 < 0.05)
+    ax.axvline(x=arr1[idx], linestyle='--', color='gray')
+
+    plt.show()
