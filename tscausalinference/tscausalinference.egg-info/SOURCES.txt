@@ -112,14 +112,3 @@ tscausalinference.egg-info/SOURCES.txt
 tscausalinference.egg-info/dependency_links.txt
 tscausalinference.egg-info/requires.txt
 tscausalinference.egg-info/top_level.txt
-tscausalinference/__pycache__/__init__.cpython-38.pyc
-tscausalinference/__pycache__/__version__.cpython-38.pyc
-tscausalinference/__pycache__/bootstrap.cpython-38.pyc
-tscausalinference/__pycache__/evaluators.cpython-38.pyc
-tscausalinference/__pycache__/load_synth_data.cpython-38.pyc
-tscausalinference/__pycache__/main.cpython-38.pyc
-tscausalinference/__pycache__/plots.cpython-38.pyc
-tscausalinference/__pycache__/regression.cpython-38.pyc
-tscausalinference/__pycache__/sensitivity_regression.cpython-38.pyc
-tscausalinference/__pycache__/summaries.cpython-38.pyc
-tscausalinference/__pycache__/synth_regression.cpython-38.pyc

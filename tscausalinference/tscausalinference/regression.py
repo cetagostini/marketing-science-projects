@@ -5,7 +5,6 @@ from prophet.diagnostics import performance_metrics
 from prophet.utilities import regressor_coefficients
 
 from tabulate import tabulate
-from sklearn.metrics import r2_score, mean_absolute_error
 
 import pandas as pd
 from pandas import DataFrame
@@ -13,8 +12,6 @@ from pandas import DataFrame
 import numpy as np
 
 import itertools
-
-import logging
 
 from tscausalinference.evaluators import mape
 
@@ -53,7 +50,7 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
     else:
         model_parameters = model_params.copy()
     
-    pre_intervention = [df.ds.min(),(pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
+    pre_intervention = [df.ds.min(), (pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
     post_intervention = [(pd.to_datetime(intervention[1]) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'), df.ds.max()]
 
     training_dataframe = df[(df.ds >= pd.to_datetime(pre_intervention[0]))&(df.ds <= pd.to_datetime(pre_intervention[1]))&(df.y > 0)].fillna(0).copy()
@@ -66,6 +63,7 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
 
     print('Training period: {} to {}'.format(pre_intervention[0], pre_intervention[1]))
     print('Test period: {} to {}\n'.format(intervention[0], intervention[1]))
+    print('Post period: {} to {}\n'.format(post_intervention[0], post_intervention[1]))
     print('Prediction horizon: {} days'.format(prediction_period))
     
     condition_int = isinstance(model_parameters[list(model_parameters.keys())[0]], float)
@@ -101,7 +99,7 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
     
     else:
         model_parameters.update({'interval_width': 1 - alpha})
-        print('Custom parameters grid: \n{}',format(model_parameters))
+        print('Custom parameters grid: \n{}'.format(model_parameters))
         if model_type == 'bayesian':
             model_parameters.update({'mcmc_samples': 1000})
         else:

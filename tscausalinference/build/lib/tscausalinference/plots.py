@@ -70,6 +70,15 @@ def plot_intervention(data, past_window: int = 5, back_window: int = 25, figsize
 
         cumplot.axvspan(pd.to_datetime(intervention[0]), pd.to_datetime(intervention[1]), alpha=0.07, color='r')
 
+        # Add horizontal lines for percentiles
+        perc_75 = np.percentile(data[data.ds < pd.to_datetime(intervention[0])]['point_effects'], 75)
+        perc_25 = np.percentile(data[data.ds < pd.to_datetime(intervention[0])]['point_effects'], 25)
+        median = np.percentile(data[data.ds < pd.to_datetime(intervention[0])]['point_effects'], 50)
+
+        cumplot.axhline(y=perc_75, linestyle='--', color='grey', alpha=0.5)
+        cumplot.axhline(y=perc_25, linestyle='--', color='grey', alpha=0.5)
+        cumplot.axhline(y=median, linestyle='--', color='grey', alpha=0.5)
+
         plt.show()
 
 def plot_simulations(data, simulation_number: int = 10, past_window: int = 5, back_window: int = 25, figsize=(18, 5), 
@@ -215,3 +224,41 @@ def sensitivity_curve(arr1 = None, arr2 = None, area = None, figsize=(25, 8)):
     ax.axvline(x=arr1[idx], linestyle='--', color='gray')
 
     plt.show()
+
+def plot_training(data, past_window: int = 5, back_window: int = 25, figsize=(15, 10), intervention = None):
+        data = data.copy()
+        fig, axes = plt.subplots(figsize=figsize)
+
+        lineplot = sns.lineplot(x = 'ds', y = 'yhat', color = 'r', alpha=0.5, linestyle='--', ci=95,
+                            err_kws={'linestyle': '--', 'hatch': '///', 'fc': 'none'}, ax=axes,
+                    data = data[(data.ds >= pd.to_datetime(intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(intervention[1]) + pd.Timedelta(days=past_window))]
+                    )
+
+        sns.lineplot(x = 'ds', y = 'y', ax=axes, color = 'b',
+                    data = data[(data.ds >= pd.to_datetime(intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(intervention[1]) + pd.Timedelta(days=past_window))]
+                    )
+
+        lineplot.axvline(pd.to_datetime(intervention[0]), color='r', linestyle='--',alpha=.5)
+        lineplot.axvline(pd.to_datetime(intervention[1]), color='r', linestyle='--',alpha=.5)
+
+        lineplot.fill_between(data[(data.ds >= pd.to_datetime(intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(intervention[1]) + pd.Timedelta(days=past_window))]['ds'], 
+                        data[(data.ds >= pd.to_datetime(intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(intervention[1]) + pd.Timedelta(days=past_window))]['yhat_lower'],
+                        data[(data.ds >= pd.to_datetime(intervention[0]) - pd.Timedelta(days=back_window))&(data.ds <= pd.to_datetime(intervention[1]) + pd.Timedelta(days=past_window))]['yhat_upper'], 
+                        color='r', alpha=.1)
+        
+        # Add horizontal lines for percentiles
+        perc_75 = np.percentile(data['y'], 75)
+        perc_25 = np.percentile(data['y'], 25)
+        median = np.percentile(data['y'], 50)
+
+        axes.axhline(y=perc_75, linestyle='--', color='grey', alpha=0.5)
+        axes.axhline(y=perc_25, linestyle='--', color='grey', alpha=0.5)
+        axes.axhline(y=median, linestyle='--', color='grey', alpha=0.5)
+
+        lineplot.legend(['Prediction', 'Real'])
+
+        axes.set_xlabel('Ds')
+        axes.set_ylabel('Y')
+        axes.set_title('Model fit in training and test period')
+
+        plt.show()
