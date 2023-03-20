@@ -70,6 +70,15 @@ def plot_intervention(data, past_window: int = 5, back_window: int = 25, figsize
 
         cumplot.axvspan(pd.to_datetime(intervention[0]), pd.to_datetime(intervention[1]), alpha=0.07, color='r')
 
+        # Add horizontal lines for percentiles
+        perc_75 = np.percentile(data['point_effects'], 75)
+        perc_25 = np.percentile(data['point_effects'], 25)
+        median = np.percentile(data['point_effects'], 50)
+
+        cumplot.axhline(y=perc_75, linestyle='--', color='grey', alpha=0.5)
+        cumplot.axhline(y=perc_25, linestyle='--', color='grey', alpha=0.5)
+        cumplot.axhline(y=median, linestyle='--', color='grey', alpha=0.5)
+
         plt.show()
 
 def plot_simulations(data, simulation_number: int = 10, past_window: int = 5, back_window: int = 25, figsize=(18, 5), 
