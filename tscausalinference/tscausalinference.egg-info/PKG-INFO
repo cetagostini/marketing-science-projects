@@ -1,10 +1,10 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.1.5.8
+Version: 0.1.5.9
 Summary: Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects
 Author: Carlos Trujillo
 Author-email: carlangastr@gmail.com
-Keywords: python,causalimpact,causal inference,marketing,prophet,bootstrap
+Keywords: python,causalimpact,causal inference,marketing,prophet,bootstrap,monte carlo random walks
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: MIT License

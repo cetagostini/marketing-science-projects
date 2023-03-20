@@ -109,7 +109,9 @@ def summary_intervention(data, intervention = None, int_metrics = None):
     --------
         No returns are defined, as the method simply generates a overview.
     """
-    data = data
+    data = data.copy()
+    lower = data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat_lower.sum()
+    upper = data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat_upper.sum()
 
     strings_info = """
 +-----------------------+------------+
@@ -126,7 +128,8 @@ def summary_intervention(data, intervention = None, int_metrics = None):
             headers=['Metric', 'Value'], 
             tablefmt='pipe'),
             'CI 95%: [{}, {}]'.format(
-                round(data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat_lower.sum(),2), 
-                round(data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat_upper.sum()),2)
+                round(lower, 0), 
+                round(upper, 0)
+            )
         ).strip()
     )

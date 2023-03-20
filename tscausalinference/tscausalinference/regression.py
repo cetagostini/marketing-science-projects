@@ -101,7 +101,7 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
     
     else:
         model_parameters.update({'interval_width': 1 - alpha})
-        print('Custom parameters grid: \n{}',format(model_parameters))
+        print('Custom parameters grid: \n{}'.format(model_parameters))
         if model_type == 'bayesian':
             model_parameters.update({'mcmc_samples': 1000})
         else:

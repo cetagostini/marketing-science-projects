@@ -148,4 +148,4 @@ def synth_analysis(df: DataFrame = None,
     ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum() -1)*100]
     ]
     
-    return data, pre_int_metrics, int_metrics
+    return data, pre_int_metrics, int_metrics, parameters

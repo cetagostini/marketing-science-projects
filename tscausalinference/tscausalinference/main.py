@@ -65,7 +65,7 @@ class tscausalinference:
         self.model_params = model_params
         self.model_type = model_type
 
-        self.data, self.pre_int_metrics, self.int_metrics = synth_analysis(
+        self.data, self.pre_int_metrics, self.int_metrics, self.hyper_parameters = synth_analysis(
             df = data, 
             regressors = regressors, 
             intervention = intervention, 
@@ -74,6 +74,7 @@ class tscausalinference:
             model_params = model_params,
             model_type = model_type
             )
+        
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
         self.simulations = bootstrap_simulate(
@@ -119,7 +120,9 @@ class tscausalinference:
                              stats_ranges = self.stats_ranges, samples_means = self.samples_means)
         elif method == 'decomposition':
             seasonal_decompose(data = self.data, intervention = self.intervention, figsize = figsize)
-        
+    
+    def model_parameters(self):
+        return self.hyper_parameters
     
     def summarization(self, statistical_significance = 0.05, method = 'general'):
         """
@@ -225,9 +228,18 @@ class sensitivity:
     def data_analysis(self):
         return self.analysis
     
-    def plot(self, figsize=(25, 8)):
-        area = mde_area(y = self.analysis.pvalue.values, x = self.analysis.index)
-        return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
+    def plot(self, method = 'sensitivity', figsize=(25, 8), past_window = 25, back_window = 10):
+        
+        if method not in ['sensitivity','training']:
+            error = "Your method should be defined as one of these -> ('sensitivity','training')"
+            raise TypeError(error)
+        
+        if method == 'sensitivity':
+            area = mde_area(y = self.analysis.pvalue.values, x = self.analysis.index)
+            return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
+        
+        if method == 'training':
+            return plot_intervention(data = self.analysis, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.test_period)
     
     def model_best_parameters(self):
         return self.hyper_parameters

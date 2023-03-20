@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.1.5.8'
+VERSION = '0.1.5.9'
 DESCRIPTION = 'Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects'
 
 with open('README.md', encoding='utf-8') as f:
@@ -15,7 +15,7 @@ setup(
     long_description = long_description_english,
     long_description_content_type = 'text/markdown',
     packages=find_packages(),
-    keywords = ['python', 'causalimpact', 'causal inference', 'marketing', 'prophet', 'bootstrap'],
+    keywords = ['python', 'causalimpact', 'causal inference', 'marketing', 'prophet', 'bootstrap', 'monte carlo random walks'],
     install_requires=[
         'numpy',
         'pandas',
