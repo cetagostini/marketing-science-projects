@@ -5,15 +5,12 @@ import pandas as pd
 
 import numpy as np
 import seaborn as sns
-import matplotlib.pyplot as plt
-
-from tabulate import tabulate
 
 from tscausalinference.synth_regression import synth_analysis
 from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
 from tscausalinference.load_synth_data import create_synth_dataframe
 from tscausalinference.sensitivity_regression import sensitivity_analysis
-from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose, sensitivity_curve
+from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose, sensitivity_curve, plot_training
 from tscausalinference.summaries import summary, summary_intervention
 from tscausalinference.evaluators import mde_area
 
@@ -239,7 +236,7 @@ class sensitivity:
             return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
         
         if method == 'training':
-            return plot_intervention(data = self.data, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.test_period)
+            return plot_training(data = self.data, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.test_period)
     
     def model_best_parameters(self):
         return self.hyper_parameters
