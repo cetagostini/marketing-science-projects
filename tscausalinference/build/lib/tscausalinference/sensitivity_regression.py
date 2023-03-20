@@ -59,7 +59,7 @@ def training_model(df: DataFrame = pd.DataFrame(),
     
     data, paremeters = prophet_regression(
             df = df, 
-            intervention = training_period, 
+            intervention = test_period, 
             cross_validation_steps = cross_validation_steps, 
             alpha = alpha, 
             model_params = model_parameters, 
