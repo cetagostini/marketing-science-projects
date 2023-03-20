@@ -99,7 +99,6 @@ def training_model(df: DataFrame = pd.DataFrame(),
     ['Noise (Std)', np.std(data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].y - data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].yhat)],
     ['Actual cumulative', data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].y.sum()],
     ['Predicted cumulative:', data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].yhat.sum()],
-    ['Difference', data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].point_effects.sum()],
     ['Change (%)', (data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].y.sum() / data[(data.ds >= test_period[0]) & (data.ds <= test_period[1])].yhat.sum() - 1) * 100]
     ]
 
