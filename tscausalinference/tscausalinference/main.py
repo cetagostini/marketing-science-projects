@@ -215,7 +215,7 @@ class sensitivity:
         self.regressors = regressors
         self.model_type = model_type
 
-        self.analysis, self.hyper_parameters = sensitivity_analysis(df = df, 
+        self.data, self.analysis, self.hyper_parameters = sensitivity_analysis(df = df, 
                          test_period = test_period, 
                          cross_validation_steps = cross_validation_steps, 
                          alpha = alpha, 
@@ -239,7 +239,7 @@ class sensitivity:
             return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
         
         if method == 'training':
-            return plot_intervention(data = self.analysis, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.test_period)
+            return plot_intervention(data = self.data, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.test_period)
     
     def model_best_parameters(self):
         return self.hyper_parameters

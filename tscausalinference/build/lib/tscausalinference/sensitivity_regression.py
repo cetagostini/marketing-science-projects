@@ -168,15 +168,15 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                                                                                         simulations = simulations,
                                                                                         mape = abs(round(test[2][1],6))/100
                                                                                         )
-            
+
             results_df = pd.DataFrame({
                             'injected_effect': [round(effect, 2)],
                             'model': [model_parameters],
                             'pvalue': [stadisticts[0]],
                             'train': [training], 
                             'test': [test],
-                            'ci_lower': [temp_test.yhat_lower.sum() * (1 - (abs(round(test[2][1],6)) / 100))],
-                            'ci_upper': [temp_test.yhat_upper.sum() * (1 + (abs(round(test[2][1],6)) / 100))],
+                            'ci_lower': [temp_test[test_mask].yhat_lower.sum() * (1 - (abs(round(test[2][1],6)) / 100))],
+                            'ci_upper': [temp_test[test_mask].yhat_upper.sum() * (1 + (abs(round(test[2][1],6)) / 100))],
                             'y_test_period': [temp_test[test_mask].y.sum()],
                             'y_test_period_mean': [temp_test[test_mask].y.mean()],
                             'y_last90days_mean': [temp_test[rolling_mask].y.mean()],
@@ -185,4 +185,4 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             
             e_dataframe = pd.concat([e_dataframe, results_df])
 
-        return e_dataframe.set_index('injected_effect'), model_parameters
+        return data, e_dataframe.set_index('injected_effect'), model_parameters

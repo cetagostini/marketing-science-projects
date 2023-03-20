@@ -5,7 +5,6 @@ from prophet.diagnostics import performance_metrics
 from prophet.utilities import regressor_coefficients
 
 from tabulate import tabulate
-from sklearn.metrics import r2_score, mean_absolute_error
 
 import pandas as pd
 from pandas import DataFrame
@@ -13,8 +12,6 @@ from pandas import DataFrame
 import numpy as np
 
 import itertools
-
-import logging
 
 from tscausalinference.evaluators import mape
 
