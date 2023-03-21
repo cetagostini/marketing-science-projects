@@ -50,6 +50,12 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
     else:
         model_parameters = model_params.copy()
     
+    df['y_lag7'] = df.y.shift(7)
+    df['y_lag14'] = df.y.shift(14)
+    
+    regressors.append('y_lag7')
+    regressors.append('y_lag14')
+    
     pre_intervention = [df.ds.min(), (pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
     post_intervention = [(pd.to_datetime(intervention[1]) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'), df.ds.max()]
 
