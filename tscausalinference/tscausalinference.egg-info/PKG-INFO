@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.1.6.7
+Version: 0.1.6.8
 Summary: Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects
 Author: Carlos Trujillo
 Author-email: carlangastr@gmail.com
@@ -108,6 +108,25 @@ data = tsci(data = df, intervention = intervention)
 data.plot(method = 'decompose')
 ```
 ![seasonal_decompose Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/seasonal_decompose.png)
+
+### Check the sensibility of your time series
+You can validate before run your experiment how big should be the effect in order to be catch it.
+
+```python
+from tscausalinference import sensitivity
+
+pre_check = sensitivity(
+    df=df,
+    test_period=['2023-12-25', '2024-01-05'],
+    cross_validation_steps=10,
+    alpha=0.05,
+    model_params={'changepoint_range': [0.85,0.50],
+                  'changepoint_prior_scale': [0.05, 0.50]},
+    regressors=['regressor2', 'regressor1'],
+    verbose=True,
+    n_samples=1000)
+```
+![sensitivity Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/sensitivity.png)
 
 ### Checking p-value, simulations & distributions
 ```python
