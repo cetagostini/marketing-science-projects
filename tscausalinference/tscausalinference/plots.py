@@ -6,7 +6,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from scipy.interpolate import make_interp_spline, BSpline
+from scipy.interpolate import make_interp_spline
+from sklearn.metrics import r2_score
 
 sns.set_theme()
 sns.set_context("paper")
@@ -262,3 +263,36 @@ def plot_training(data, past_window: int = 5, back_window: int = 25, figsize=(15
         axes.set_title('Model fit in training and test period')
 
         plt.show()
+
+def plot_diagnostic(data = DataFrame(), figsize = (25, 10), intervention = []):
+    data = data.copy()
+    training = data[data.ds <= (pd.to_datetime(intervention[0]) - pd.Timedelta(days=1))].copy()
+    test = data[data.ds > pd.to_datetime(intervention[1])].copy()
+
+    bbox_props = dict(boxstyle='round,pad=0.5', fc='white', ec='gray', lw=1) # set the box properties
+    
+    r_train = r2_score(training['y'], training['yhat'])
+    r_test = r2_score(test['y'], test['yhat'])
+
+    fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = figsize, sharex=False, sharey=False)
+    fig.suptitle('Model Diagnostics')
+    fig.subplots_adjust(hspace=0.4, wspace=0.4)
+    
+    scatter_train = sns.scatterplot(data=training, x="yhat", y="y", ax=axes[0][0])
+    scatter_train.set_title('Model fit in Training')
+
+    axes[0][0].text(1.0, 0.4, f'R2: {r_train:.2f}', fontsize = 14, bbox = bbox_props)
+
+    scatter_test = sns.scatterplot(data=test, x="yhat", y="y", ax=axes[0][1])
+    scatter_test.set_title('Model fit in Test')
+
+    axes[0][1].text(1.0, 0.4, f'R2: {r_test:.2f}', fontsize = 14, bbox = bbox_props)
+
+    hist_train = sns.histplot(data = training, x="residuals", ax=axes[1][0])
+    hist_train.set_title('Model residuals in Training')
+
+    hist_test = sns.histplot(data = test, x="residuals", ax=axes[1][1])
+    hist_test.set_title('Model residuals in Test')
+    
+    # Show the plot
+    sns.despine()
