@@ -205,6 +205,7 @@ class sensitivity:
                 regressors: list = [],
                 verbose: bool = False,
                 n_samples = 1000,
+                autocorrelation = False,
                 model_type='gam'):
     
         self.df = df
@@ -214,6 +215,7 @@ class sensitivity:
         self.model_params = model_params
         self.regressors = regressors
         self.model_type = model_type
+        self.autocorrelation = autocorrelation
 
         self.data, self.analysis, self.hyper_parameters = sensitivity_analysis(df = df, 
                          test_period = test_period, 
@@ -223,6 +225,7 @@ class sensitivity:
                          regressors= regressors,
                          verbose = verbose,
                          n_samples = n_samples,
+                         autocorrelation = autocorrelation,
                          model_type = model_type)
     
     def data_analysis(self):
