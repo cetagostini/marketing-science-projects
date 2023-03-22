@@ -33,7 +33,8 @@ class tscausalinference:
         n_samples: int = 1500,
         cross_validation_steps: int = 5,
         model_params: dict = {},
-        model_type = 'gam'
+        model_type = 'gam',
+        autocorrelation = False
         ):
         """
         Initializes the tscausalinference object with the given parameters.
@@ -69,7 +70,8 @@ class tscausalinference:
             cross_validation_steps = cross_validation_steps,
             alpha = alpha,
             model_params = model_params,
-            model_type = model_type
+            model_type = model_type,
+            autocorrelation = autocorrelation
             )
         
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])

@@ -27,7 +27,8 @@ def training_model(df: DataFrame = pd.DataFrame(),
                          model_params: dict = {}, 
                          regressors: list = [],
                          verbose: bool = True,
-                         model_type = 'gam'):
+                         model_type = 'gam',
+                         autocorrelation = False):
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a pandas DataFrame")
@@ -65,7 +66,8 @@ def training_model(df: DataFrame = pd.DataFrame(),
             model_params = model_parameters, 
             regressors = regressors,
             verbose = verbose,
-            model_type = model_type)
+            model_type = model_type,
+            autocorrelation = autocorrelation)
 
     data['residuals'] = data['y'] - data['yhat']
     
@@ -127,7 +129,8 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                          regressors: list = [],
                          verbose: bool = False,
                          n_samples = 1000,
-                         model_type = 'gam'):
+                         model_type = 'gam',
+                         autocorrelation = False):
         
         df_temp = df.copy()
         
@@ -139,7 +142,8 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                 alpha = alpha,
                 model_params = model_params,
                 verbose = verbose,
-                model_type = model_type
+                model_type = model_type,
+                autocorrelation = autocorrelation
                 )
         
         effects = np.linspace(1.0, 2.0, 30)
