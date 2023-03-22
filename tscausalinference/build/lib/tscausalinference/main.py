@@ -10,7 +10,7 @@ from tscausalinference.synth_regression import synth_analysis
 from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
 from tscausalinference.load_synth_data import create_synth_dataframe
 from tscausalinference.sensitivity_regression import sensitivity_analysis
-from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose, sensitivity_curve, plot_training
+from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose, sensitivity_curve, plot_training, plot_diagnostic
 from tscausalinference.summaries import summary, summary_intervention
 from tscausalinference.evaluators import mde_area
 
@@ -231,18 +231,22 @@ class sensitivity:
     def data_analysis(self):
         return self.analysis
     
-    def plot(self, method = 'sensitivity', figsize=(25, 8), past_window = 25, back_window = 10):
+    def plot(self, method = 'sensitivity', figsize=(25, 10), past_window = 25, back_window = 10):
         
-        if method not in ['sensitivity','training']:
-            error = "Your method should be defined as one of these -> ('sensitivity','training')"
+        if method not in ['sensitivity','training', 'diagnostic']:
+            error = "Your method should be defined as one of these -> ('sensitivity','training', 'diagnostic')"
             raise TypeError(error)
         
         if method == 'sensitivity':
             area = mde_area(y = self.analysis.pvalue.values, x = self.analysis.index)
             return sensitivity_curve(arr1 = self.analysis.index, arr2 = self.analysis.pvalue.values, area = area, figsize = figsize)
         
-        if method == 'training':
+        elif method == 'training':
             return plot_training(data = self.data, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.test_period)
+        
+        elif method == 'diagnostic':
+            plot_diagnostic(data = self.data, figsize = figsize, intervention = self.test_period)
+        
     
     def model_best_parameters(self):
         return self.hyper_parameters
