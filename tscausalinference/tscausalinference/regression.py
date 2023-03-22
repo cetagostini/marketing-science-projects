@@ -22,7 +22,8 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
                          model_params: dict = {}, 
                          regressors: list = [],
                          verbose = True,
-                         model_type = 'gam'):
+                         model_type = 'gam',
+                         autocorrelation = False):
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("df must be a pandas DataFrame")
@@ -53,8 +54,9 @@ def prophet_regression(df: DataFrame = pd.DataFrame(),
     df['y_lag7'] = df.y.shift(7)
     df['y_lag14'] = df.y.shift(14)
     
-    regressors.append('y_lag7')
-    regressors.append('y_lag14')
+    if autocorrelation:
+        regressors.append('y_lag7')
+        regressors.append('y_lag14')
     
     pre_intervention = [df.ds.min(), (pd.to_datetime(intervention[0]) - pd.Timedelta(days=1)).strftime('%Y-%m-%d')]
     post_intervention = [(pd.to_datetime(intervention[1]) + pd.Timedelta(days=1)).strftime('%Y-%m-%d'), df.ds.max()]

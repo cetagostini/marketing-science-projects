@@ -31,7 +31,8 @@ def synth_analysis(df: DataFrame = None,
                     alpha: float = 0.05,
                     model_params: dict = {},
                     verbose = True,
-                    model_type = 'gam'
+                    model_type = 'gam',
+                    autocorrelation = False
                     ):
     """
     Fits a Prophet model and computes performance metrics for a given input DataFrame. The function is designed to work with
@@ -108,7 +109,8 @@ def synth_analysis(df: DataFrame = None,
                                 model_params = model_parameters, 
                                 regressors = regressors,
                                 verbose = verbose,
-                                model_type = model_type)
+                                model_type = model_type,
+                                autocorrelation = autocorrelation)
 
     data['cummulitive_y'] = data['y'].cumsum()
     data['cummulitive_yhat'] = data['yhat'].cumsum()
