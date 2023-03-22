@@ -62,6 +62,7 @@ class tscausalinference:
         self.cross_validation_steps = cross_validation_steps
         self.model_params = model_params
         self.model_type = model_type
+        self.autocorrelation = autocorrelation
 
         self.data, self.pre_int_metrics, self.int_metrics, self.hyper_parameters = synth_analysis(
             df = data, 
