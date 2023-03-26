@@ -6,6 +6,11 @@ from scipy.stats import norm
 
 from typing import Union
 
+from tscausalinference.seasonality import yearly_season, weekly_season
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 def prob_in_distribution(data, x):
   """
     Calculate the probability of a given value being in a distribution defined by the given data.
@@ -42,9 +47,11 @@ def prob_in_distribution(data, x):
           return 2 * (1 - cdf_x + cdf_lower) / (1 - cdf_lower - cdf_upper)
 
 def bootstrap_simulate(
-                    data: Union[np.array, pd.DataFrame] = None, 
+                    variable: Union[np.array, pd.DataFrame] = None, 
                     n_samples: int = 1500, 
-                    n_steps: int = None):
+                    n_steps: int = None,
+                    mape: float = None,
+                    prio = False):
     """
     Generate an array of bootstrap samples for a given dataset.
 
@@ -75,12 +82,16 @@ def bootstrap_simulate(
     
     # Loop over number of bootstrap samples
     for i in range(n_samples):
+        min_range = variable.min() * (1 - mape)
+        max_range = variable.max() * (mape + 1)
+
         # Resample data with replacement
-        bootstrap_data = np.random.choice(data, size=len(data))#, replace=True)
+        bootstrap_data = np.random.choice(variable, size=len(variable))#, replace=True)
         
         # Simulate random walk based on bootstrap data
         walk = np.cumsum(np.random.randn(n_steps))
         walk -= walk[0]
+
         walk *= bootstrap_data.std() / walk.std()
         walk += bootstrap_data.mean()
 
@@ -93,9 +104,14 @@ def bootstrap_simulate(
         
         # Apply the smoothing filter
         walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
+        walk = np.clip(walk_smoothed, min_range, max_range)
 
-        # Save random walk as one of the bootstrap samples
-        bootstrap_samples[i] = walk_smoothed
+        if prio:
+            info = variable.values
+            walk = info + (np.mean(walk) - np.mean(info))
+
+        # Limiting the walk and Save random walk as one of the bootstrap samples
+        bootstrap_samples[i] = walk.copy()
     
     return bootstrap_samples
     
@@ -103,8 +119,8 @@ def bootstrap_p_value(
                     control: Union[np.array, pd.DataFrame] = None, 
                     treatment: Union[np.array, pd.DataFrame] = None, 
                     simulations: np.array = None, 
-                    alpha: float = 0.05,
-                    mape: float = None):
+                    alpha: float = 0.05
+                    ):
     """
     Calculate the p-value for a difference in means between 
     a control group and a treatment group using the bootstrap method.
@@ -152,9 +168,9 @@ def bootstrap_p_value(
     for i in range(len(simulations)):
         bootstrapped_means[i] = simulations[i].mean()
     
-    bootstrapped_means_min = bootstrapped_means - (mean * mape)
-    bootstrapped_means_max = bootstrapped_means + (mean * mape)
-    bootstrapped_means = np.concatenate([bootstrapped_means_min, bootstrapped_means, bootstrapped_means_max])
+    # bootstrapped_means_min = bootstrapped_means - (mean * mape)
+    # bootstrapped_means_max = bootstrapped_means + (mean * mape)
+    # bootstrapped_means = np.concatenate([bootstrapped_means_min, bootstrapped_means, bootstrapped_means_max])
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
     

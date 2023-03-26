@@ -14,6 +14,9 @@ from tscausalinference.plots import plot_intervention, plot_simulations, seasona
 from tscausalinference.summaries import summary, summary_intervention
 from tscausalinference.evaluators import mde_area
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 sns.set_theme()
 sns.set_context("paper")
 
@@ -63,32 +66,37 @@ class tscausalinference:
         self.model_params = model_params
         self.model_type = model_type
         self.autocorrelation = autocorrelation
-
-        self.data, self.pre_int_metrics, self.int_metrics, self.hyper_parameters = synth_analysis(
-            df = data, 
-            regressors = regressors, 
-            intervention = intervention, 
-            cross_validation_steps = cross_validation_steps,
-            alpha = alpha,
-            model_params = model_params,
-            model_type = model_type,
-            autocorrelation = autocorrelation
-            )
         
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
+    def run(self, prio = False):
+
+        self.data, self.pre_int_metrics, self.int_metrics, self.hyper_parameters = synth_analysis(
+            df = self.data, 
+            regressors = self.regressors, 
+            intervention = self.intervention, 
+            cross_validation_steps = self.cross_validation_steps,
+            alpha = self.alpha,
+            model_params = self.model_params,
+            model_type = self.model_type,
+            autocorrelation = self.autocorrelation
+            )
+    
         self.simulations = bootstrap_simulate(
-                data = self.data.query(self.string_filter).yhat, 
-                n_samples = n_samples, 
-                n_steps = len(self.data.query(self.string_filter).index)
-                )
+            variable = self.data.query(self.string_filter).yhat, 
+            n_samples = self.n_samples, 
+            n_steps = len(self.data.query(self.string_filter).index),
+            mape = abs(round(self.pre_int_metrics[2][1],6)) / 100,
+            prio = prio
+            )
         
         self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
                                                                                     treatment = self.data.query(self.string_filter).y, 
-                                                                                    simulations = self.simulations,
-                                                                                    mape = abs(round(self.pre_int_metrics[2][1],6))/100
+                                                                                    simulations = self.simulations
                                                                                     )
- 
+
+        return self
+    
     def plot(self, 
               method: str = 'intervention',
               past_window: int = 5, 
@@ -216,17 +224,22 @@ class sensitivity:
         self.regressors = regressors
         self.model_type = model_type
         self.autocorrelation = autocorrelation
+        self.verbose = verbose
+        self.n_samples = n_samples
 
-        self.data, self.analysis, self.hyper_parameters = sensitivity_analysis(df = df, 
-                         test_period = test_period, 
-                         cross_validation_steps = cross_validation_steps, 
-                         alpha = alpha, 
-                         model_params = model_params, 
-                         regressors= regressors,
-                         verbose = verbose,
-                         n_samples = n_samples,
-                         autocorrelation = autocorrelation,
-                         model_type = model_type)
+    def run(self, prio = False):
+        self.data, self.analysis, self.hyper_parameters = sensitivity_analysis(df = self.df, 
+                         test_period = self.test_period, 
+                         cross_validation_steps = self.cross_validation_steps, 
+                         alpha = self.alpha, 
+                         model_params = self.model_params, 
+                         regressors= self.regressors,
+                         verbose = self.verbose,
+                         n_samples = self.n_samples,
+                         prio = prio,
+                         autocorrelation = self.autocorrelation,
+                         model_type = self.model_type)
+        return self
     
     def data_analysis(self):
         return self.analysis
