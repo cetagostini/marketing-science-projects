@@ -10,6 +10,7 @@ import logging
 from tscausalinference.evaluators import mape
 from tscausalinference.regression import prophet_regression
 from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
+from tscausalinference.seasonality import yearly_season, weekly_season
 
 logger = logging.getLogger('cmdstanpy')
 logger.addHandler(logging.NullHandler())
@@ -130,7 +131,8 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                          verbose: bool = False,
                          n_samples = 1000,
                          model_type = 'gam',
-                         autocorrelation = False):
+                         autocorrelation = False,
+                         prio = False):
         
         df_temp = df.copy()
         
@@ -162,15 +164,16 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
             temp_test.loc[test_mask, 'y'] *= effect
             
             simulations = bootstrap_simulate(
-                    data = temp_test[test_mask].yhat, 
+                    variable = temp_test[test_mask].yhat, 
                     n_samples = n_samples, 
-                    n_steps = len(temp_test[test_mask].index)
+                    n_steps = len(temp_test[test_mask].index),
+                    mape = abs(round(test[2][1],6)) / 100,
+                    prio = prio
                     )
             
             stadisticts, stats_ranges, samples_means = bootstrap_p_value(control = temp_test[test_mask].yhat, 
                                                                                         treatment = temp_test[test_mask].y, 
-                                                                                        simulations = simulations,
-                                                                                        mape = abs(round(test[2][1],6))/100
+                                                                                        simulations = simulations
                                                                                         )
 
             results_df = pd.DataFrame({

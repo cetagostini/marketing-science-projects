@@ -54,9 +54,10 @@ import pandas as pd
 df = pd.read_csv('mydata.csv')
 intervention = ['2022-07-04', '2022-07-19']
 
-data = tsci(data = df, intervention = intervention)
+model = tsci(data = df, intervention = intervention)
+model.run()
 
-data.plot()
+model.plot()
 ```
 ![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
 
@@ -89,9 +90,10 @@ memory usage: 14.3 KB
 ```
 ### Checking seasonal decomposition
 ```python
-data = tsci(data = df, intervention = intervention)
+model = tsci(data = df, intervention = intervention)
+model.run()
 
-data.plot(method = 'decompose')
+model.plot(method = 'decompose')
 ```
 ![seasonal_decompose Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/seasonal_decompose.png)
 
@@ -101,7 +103,7 @@ You can validate before run your experiment how big should be the effect in orde
 ```python
 from tscausalinference import sensitivity
 
-pre_check = sensitivity(
+model_check = sensitivity(
     df=df,
     test_period=['2023-12-25', '2024-01-05'],
     cross_validation_steps=10,
@@ -110,25 +112,28 @@ pre_check = sensitivity(
                   'changepoint_prior_scale': [0.05, 0.50]},
     regressors=['regressor2', 'regressor1'],
     verbose=True,
+    autocorrelation = False,
     n_samples=1000)
+model_check.run(prio = False)
+model_check.plot()
 ```
 ![sensitivity Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/sensitivity.png)
 
 ### Checking p-value, simulations & distributions
 ```python
-data = tsci(data = df, intervention = intervention)
+model = tsci(data = df, intervention = intervention)
 
-data.plot(method = 'simulations')
+model.plot(method = 'simulations')
 ```
 ![plot_simulations Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/pvalue.png)
 
 ### Customizing model
 ```python
-data = tsci(data = df, intervention = intervention, regressors = ['a','b'],
+model = tsci(data = df, intervention = intervention, regressors = ['a','b'],
                         alpha = 0.03, n_samples = 10000, cross_validation_steps = 15
                         )
 
-data.summarization()
+model.summarization()
 ```
 ```md
     Considerations

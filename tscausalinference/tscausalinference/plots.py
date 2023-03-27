@@ -274,19 +274,17 @@ def plot_diagnostic(data = DataFrame(), figsize = (25, 10), intervention = []):
     r_train = r2_score(training['y'], training['yhat'])
     r_test = r2_score(test['y'], test['yhat'])
 
-    fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = figsize, sharex=False, sharey=False)
+    fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = figsize)
     fig.suptitle('Model Diagnostics')
     fig.subplots_adjust(hspace=0.4, wspace=0.4)
     
     scatter_train = sns.scatterplot(data=training, x="yhat", y="y", ax=axes[0][0])
     scatter_train.set_title('Model fit in Training')
-
-    axes[0][0].text(1.0, 0.4, f'R2: {r_train:.2f}', fontsize = 14, bbox = bbox_props)
+    axes[0][0].text(0.95, 0.95, f'R2: {r_train:.2f}', fontsize = 14, bbox = bbox_props, transform=axes[0][0].transAxes)
 
     scatter_test = sns.scatterplot(data=test, x="yhat", y="y", ax=axes[0][1])
     scatter_test.set_title('Model fit in Test')
-
-    axes[0][1].text(1.0, 0.4, f'R2: {r_test:.2f}', fontsize = 14, bbox = bbox_props)
+    axes[0][1].text(0.95, 0.95, f'R2: {r_test:.2f}', fontsize = 14, bbox = bbox_props, transform=axes[0][1].transAxes)
 
     hist_train = sns.histplot(data = training, x="residuals", ax=axes[1][0])
     hist_train.set_title('Model residuals in Training')
