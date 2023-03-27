@@ -25,6 +25,19 @@ pd.options.mode.chained_assignment = None
 class tscausalinference:
     """
     A class to perform time series causal inference using Synthetic Controls Methodology.
+
+    Parameters:
+    data (np.array or DataFrame): The time series data.
+    intervention (list): The intervention period in the format ['start_date', 'end_date'].
+    regressors (list, optional): A list of column names to be used as regressors in the model. Defaults to empty list.
+    alpha (float, optional): The level of significance. Defaults to 0.05.
+    seasonality (bool, optional): Whether or not to include seasonality in the model. Defaults to True.
+    n_samples (int, optional): Number of bootstrapping samples. Defaults to 1500.
+    cross_validation_steps (int, optional): Number of cross-validation steps. Defaults to 5.
+    model_params (dict, optional): Additional parameters for the Prophet model. Defaults to empty dictionary.
+
+    Returns:
+        None
     """
 
     def __init__(self,
@@ -39,22 +52,6 @@ class tscausalinference:
         model_type = 'gam',
         autocorrelation = False
         ):
-        """
-        Initializes the tscausalinference object with the given parameters.
-
-        Parameters:
-            data (np.array or DataFrame): The time series data.
-            intervention (list): The intervention period in the format ['start_date', 'end_date'].
-            regressors (list, optional): A list of column names to be used as regressors in the model. Defaults to empty list.
-            alpha (float, optional): The level of significance. Defaults to 0.05.
-            seasonality (bool, optional): Whether or not to include seasonality in the model. Defaults to True.
-            n_samples (int, optional): Number of bootstrapping samples. Defaults to 1500.
-            cross_validation_steps (int, optional): Number of cross-validation steps. Defaults to 5.
-            model_params (dict, optional): Additional parameters for the Prophet model. Defaults to empty dictionary.
-
-        Returns:
-            None
-        """
 
         self.data = data
         self.intervention = intervention
@@ -70,7 +67,15 @@ class tscausalinference:
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
     def run(self, prio = False):
+        """
+        Runs the causal analysis with the specified configuration.
 
+        Args:
+            prio (bool, optional): Whether to use a priori information from seasonality and trend in the analysis. Defaults to False.
+
+        Returns:
+            self: The tscausalinference object, updated with the results of the causal analysis.      
+        """
         self.data, self.pre_int_metrics, self.int_metrics, self.hyper_parameters = synth_analysis(
             df = self.data, 
             regressors = self.regressors, 
@@ -203,7 +208,30 @@ class synth_dataframe:
         return self.df
 
 class sensitivity:
+    """
+    The `sensitivity` class helps analyze the sensitivity of a model by performing
+    a sensitivity analysis with a given dataset and model type. It supports cross-validation,
+    hyperparameter optimization, and visualization of results.
 
+    Attributes:
+        df (pd.DataFrame): The input dataset.
+        test_period: The period used for testing.
+        cross_validation_steps (int): The number of cross-validation steps.
+        alpha (float): The significance level for hypothesis testing.
+        model_params (dict): Model parameters to be used in the analysis.
+        regressors (list): The list of regressors to be used in the analysis.
+        verbose (bool): Whether to print log messages or not.
+        n_samples (int): Number of samples to be used in the analysis.
+        autocorrelation (bool): Whether to consider autocorrelation in the analysis.
+        model_type (str): The type of model to use in the analysis GAM or Bayesian ('gam' is the default).
+
+    Example:
+        >>> import pandas as pd
+        >>> data = pd.read_csv("data.csv")
+        >>> sens = sensitivity(df=data, test_period=10, alpha=0.05)
+        >>> sens.run()
+        >>> sens.plot(method="sensitivity")    
+    """
     def __init__(self,
                 df: DataFrame = pd.DataFrame(), 
                 test_period = None, 
@@ -215,7 +243,13 @@ class sensitivity:
                 n_samples = 1000,
                 autocorrelation = False,
                 model_type='gam'):
-    
+
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError("Parameter `df` must be an instance of pandas.DataFrame")
+        
+        if not isinstance(test_period, list):
+            raise ValueError("Parameter `test_period` must be a list")
+
         self.df = df
         self.test_period = test_period
         self.cross_validation_steps = cross_validation_steps
@@ -228,6 +262,19 @@ class sensitivity:
         self.n_samples = n_samples
 
     def run(self, prio = False):
+        """
+        Runs the sensitivity analysis with the specified configuration.
+
+        Args:
+            prio (bool, optional): Whether to use a priori information from seasonality and trend in the analysis. Defaults to False.
+
+        Returns:
+            self: The sensitivity object, updated with the results of the sensitivity analysis.
+
+        Example:
+            >>> sens = sensitivity(df=data, test_period=10, alpha=0.05)
+            >>> sens.run()        
+        """
         self.data, self.analysis, self.hyper_parameters = sensitivity_analysis(df = self.df, 
                          test_period = self.test_period, 
                          cross_validation_steps = self.cross_validation_steps, 
@@ -242,9 +289,37 @@ class sensitivity:
         return self
     
     def data_analysis(self):
+        """
+        Retrieves the results of the sensitivity analysis.
+
+        Returns:
+            pd.DataFrame: The results of the sensitivity analysis, including p-values and other statistics.
+
+        Example:
+            >>> sens = sensitivity(df=data, test_period=10, alpha=0.05)
+            >>> sens.run()
+            >>> analysis = sens.data_analysis()    
+        """
         return self.analysis
     
     def plot(self, method = 'sensitivity', figsize=(25, 10), past_window = 25, back_window = 10):
+        """
+        Plots the results of the sensitivity analysis using the specified method.
+
+        Args:
+            method (str, optional): The plotting method to use ('sensitivity', 'training', or 'diagnostic'). Defaults to 'sensitivity'.
+            figsize (tuple, optional): The size of the plot. Defaults to (25, 10).
+            past_window (int, optional): The number of past data points to display in the training plot. Defaults to 25.
+            back_window (int, optional): The number of back data points to display in the training plot. Defaults to 10.
+
+        Raises:
+            TypeError: If an invalid method is provided.
+
+        Example:
+            >>> sens = sensitivity(df=data, test_period=10, alpha=0.05)
+            >>> sens.run()
+            >>> sens.plot(method="sensitivity")        
+        """
         
         if method not in ['sensitivity','training', 'diagnostic']:
             error = "Your method should be defined as one of these -> ('sensitivity','training', 'diagnostic')"
@@ -262,4 +337,15 @@ class sensitivity:
         
     
     def model_best_parameters(self):
+        """
+        Retrieves the best hyperparameters found during the sensitivity analysis.
+
+        Returns:
+            dict: A dictionary containing the best hyperparameters for the model.
+
+        Example:
+            >>> sens = sensitivity(df=data, test_period=10, alpha=0.05)
+            >>> sens.run()
+            >>> best_params = sens.model_best_parameters()
+        """
         return self.hyper_parameters
