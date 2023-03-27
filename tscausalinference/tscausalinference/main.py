@@ -67,7 +67,15 @@ class tscausalinference:
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
     def run(self, prio = False):
+        """
+        Runs the causal analysis with the specified configuration.
 
+        Args:
+            prio (bool, optional): Whether to use a priori information from seasonality and trend in the analysis. Defaults to False.
+
+        Returns:
+            self: The tscausalinference object, updated with the results of the causal analysis.      
+        """
         self.data, self.pre_int_metrics, self.int_metrics, self.hyper_parameters = synth_analysis(
             df = self.data, 
             regressors = self.regressors, 
