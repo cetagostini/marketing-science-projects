@@ -11,6 +11,10 @@ from tscausalinference.seasonality import yearly_season, weekly_season
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+def min_max_scale(data, min_range, max_range):
+    data_min, data_max = data.min(), data.max()
+    return (data - data_min) * (max_range - min_range) / (data_max - data_min) + min_range
+
 def prob_in_distribution(data, x):
   """
     Calculate the probability of a given value being in a distribution defined by the given data.
@@ -104,7 +108,7 @@ def bootstrap_simulate(
         
         # Apply the smoothing filter
         walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
-        walk = np.clip(walk_smoothed, min_range, max_range)
+        walk = min_max_scale(walk_smoothed, min_range, max_range)
 
         if prio:
             info = variable.values
@@ -167,10 +171,6 @@ def bootstrap_p_value(
     
     for i in range(len(simulations)):
         bootstrapped_means[i] = simulations[i].mean()
-    
-    # bootstrapped_means_min = bootstrapped_means - (mean * mape)
-    # bootstrapped_means_max = bootstrapped_means + (mean * mape)
-    # bootstrapped_means = np.concatenate([bootstrapped_means_min, bootstrapped_means, bootstrapped_means_max])
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
     
