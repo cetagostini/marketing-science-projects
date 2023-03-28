@@ -83,32 +83,21 @@ def bootstrap_simulate(
     """
     # Initialize array to hold bootstrap samples
     bootstrap_samples = np.empty((n_samples, n_steps))
+
+    min_range = variable.min() * (1 - mape)
+    max_range = variable.max() * (mape + 1)
     
     # Loop over number of bootstrap samples
     for i in range(n_samples):
-        min_range = variable.min() * (1 - mape)
-        max_range = variable.max() * (mape + 1)
 
         # Resample data with replacement
-        bootstrap_data = np.random.choice(variable, size=len(variable))#, replace=True)
+        bootstrap_data = np.random.choice(variable, size=len(variable))
         
         # Simulate random walk based on bootstrap data
-        walk = np.cumsum(np.random.randn(n_steps))
-        walk -= walk[0]
-
-        walk *= bootstrap_data.std() / walk.std()
+        walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
         walk += bootstrap_data.mean()
 
-        # Smooth the simulated random walk using a moving average filter
-        smoother = 2  # the amount of smoothing on either side
-        
-        # Pad the beginning and end of the input array
-        pad_size = smoother
-        padded_walk = np.pad(walk, (pad_size, pad_size), mode='edge')
-        
-        # Apply the smoothing filter
-        walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
-        walk = min_max_scale(walk_smoothed, min_range, max_range)
+        walk = min_max_scale(walk, min_range, max_range)
 
         if prio:
             info = variable.values
