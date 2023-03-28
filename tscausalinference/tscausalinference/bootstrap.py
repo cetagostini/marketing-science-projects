@@ -108,13 +108,14 @@ def bootstrap_simulate(
         
         # Apply the smoothing filter
         walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
-        walk = min_max_scale(walk_smoothed, min_range, max_range)
+        walk = walk_smoothed.copy()
 
         if prio:
             info = variable.values
             walk = info + (np.mean(walk) - np.mean(info))
 
         # Limiting the walk and Save random walk as one of the bootstrap samples
+        walk = min_max_scale(walk, min_range, max_range)
         bootstrap_samples[i] = walk.copy()
     
     return bootstrap_samples
