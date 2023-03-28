@@ -203,7 +203,7 @@ def sensitivity_curve(arr1 = None, arr2 = None, area = None, figsize=(25, 8)):
     ax.plot(x_new, y_smooth, color='violet', linewidth=3, label='Effect')
 
     bbox_props = dict(boxstyle='round,pad=0.5', fc='white', ec='gray', lw=1) # set the box properties
-    ax.text(1.0, 0.4, f'Sensitivity: {area:.2f}', fontsize=14, bbox=bbox_props) # add the text box annotation to the plot
+    ax.text(0.15, 0.15, f'Sensitivity: {area:.2f}', fontsize=14, bbox=bbox_props,transform=ax.transAxes) # add the text box annotation to the plot
 
     # add axis labels and a title
     ax.set_xlabel('Estimated Effect', fontsize=14)
@@ -220,9 +220,6 @@ def sensitivity_curve(arr1 = None, arr2 = None, area = None, figsize=(25, 8)):
 
     ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
     ax.yaxis.set_minor_locator(plt.MultipleLocator(0.05))
-
-    idx = np.argmax(arr2 < 0.05)
-    ax.axvline(x=arr1[idx], linestyle='--', color='gray')
 
     plt.show()
 

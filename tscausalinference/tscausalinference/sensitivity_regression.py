@@ -148,7 +148,7 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                 autocorrelation = autocorrelation
                 )
         
-        effects = np.linspace(1.0, 2.0, 30)
+        effects = np.linspace(0.1, 2.0, 50)
         e_dataframe = pd.DataFrame()
 
         for effect in effects:
@@ -184,7 +184,10 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                             'test': [test],
                             'ci_lower': [temp_test[test_mask].yhat_lower.sum() * (1 - (abs(round(test[2][1],6)) / 100))],
                             'ci_upper': [temp_test[test_mask].yhat_upper.sum() * (1 + (abs(round(test[2][1],6)) / 100))],
+                            'ci_mean': [stats_ranges],
+                            'y_pred_period': [temp_test[test_mask].yhat.sum()],
                             'y_test_period': [temp_test[test_mask].y.sum()],
+                            'y_pred_period_mean': [temp_test[test_mask].yhat.mean()],
                             'y_test_period_mean': [temp_test[test_mask].y.mean()],
                             'y_last90days_mean': [temp_test[rolling_mask].y.mean()],
                             'y_historical_mean': [temp_test[temp_test['ds'] < pd.to_datetime(test_period[0])].y.mean()]
