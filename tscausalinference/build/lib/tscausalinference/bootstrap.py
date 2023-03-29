@@ -59,6 +59,7 @@ def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
 
       walk = min_max_scale(walk, min_range, max_range)
       walk = variable.values - (np.mean(variable.values) - np.mean(walk))
+      walk -= (np.mean(walk) - np.mean(variable.values))
 
       #Save random walk as one of the bootstrap samples
       bootstrap_samples[i] = walk.copy()
