@@ -66,7 +66,7 @@ class tscausalinference:
         
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
-    def run(self, prio = False):
+    def run(self, prior = False):
         """
         Runs the causal analysis with the specified configuration.
 
@@ -92,7 +92,7 @@ class tscausalinference:
             n_samples = self.n_samples, 
             n_steps = len(self.data.query(self.string_filter).index),
             mape = abs(round(self.pre_int_metrics[2][1],6)) / 100,
-            prio = prio
+            prio = prior
             )
         
         self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
@@ -157,7 +157,7 @@ class tscausalinference:
             stadisticts = self.stadisticts, pre_int_metrics = self.pre_int_metrics, 
             int_metrics = self.int_metrics, intervention = self.intervention, n_samples = self.n_samples)
         elif method == 'detailed':
-            summary_intervention(data = self.data, intervention = self.intervention, int_metrics = self.int_metrics) 
+            summary_intervention(data = self.data, intervention = self.intervention, int_metrics = self.int_metrics, stats_ranges = self.stats_ranges) 
 
 class synth_dataframe:
     """
@@ -261,7 +261,7 @@ class sensitivity:
         self.verbose = verbose
         self.n_samples = n_samples
 
-    def run(self, prio = False):
+    def run(self, prior = False):
         """
         Runs the sensitivity analysis with the specified configuration.
 
@@ -283,7 +283,7 @@ class sensitivity:
                          regressors= self.regressors,
                          verbose = self.verbose,
                          n_samples = self.n_samples,
-                         prio = prio,
+                         prio = prior,
                          autocorrelation = self.autocorrelation,
                          model_type = self.model_type)
         return self
