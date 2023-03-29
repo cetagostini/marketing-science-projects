@@ -193,7 +193,8 @@ def bootstrap_p_value(
     norm_simulations = simulations.copy()
     
     for i in range(len(norm_simulations)):
-        norm_simulations[i] -= mean
+        diff = norm_simulations[i].mean() - mean
+        norm_simulations[i] -= diff
         bootstrapped_means[i] = norm_simulations[i].mean()
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
