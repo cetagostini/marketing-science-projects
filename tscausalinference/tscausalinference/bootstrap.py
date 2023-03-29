@@ -21,8 +21,7 @@ def structural_bootstrap(data, block_size):
     return resampled_data
 
 def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
-    min_range = variable.min() * (1 - mape)
-    max_range = variable.max() * (mape + 1)
+
     # Loop over number of bootstrap samples
     for i in range(n_samples):
 
@@ -36,44 +35,45 @@ def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
       walk *= bootstrap_data.std() / walk.std()
       walk += bootstrap_data.mean()
 
-      # Smooth the simulated random walk using a moving average filter
+      # Smooth the simulated random walk using an exponential moving average filter
       smoother = 2  # the amount of smoothing on either side
-      
-      # Pad the beginning and end of the input array
-      pad_size = smoother
-      padded_walk = np.pad(walk, (pad_size, pad_size), mode='edge')
+      alpha = 1 / (smoother + 1)
+      walk_smoothed = pd.Series(walk).ewm(alpha=alpha).mean().values
 
-      # Apply the smoothing filter
-      walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
-      walk = min_max_scale(walk_smoothed, min_range, max_range)
-
-      bootstrap_samples[i] = walk.copy()
+      bootstrap_samples[i] = walk_smoothed.copy()
 
     return bootstrap_samples
 
 def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
-    min_range = variable.min() * (1 - mape)
-    max_range = variable.max() * (mape + 1)
+    mean_range_min = variable.mean() * (1 - mape)
+    mean_range_max = variable.mean() * (mape + 1)
 
     # Loop over number of bootstrap samples
     for i in range(n_samples):
 
-      # Resample data with replacement
-      bootstrap_data = np.random.choice(variable, size=len(variable))
-      
-      # Simulate random walk based on bootstrap data
-      walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
-      walk += bootstrap_data.mean()
+      walk_mean_out_of_range = True
+      while walk_mean_out_of_range:
 
-      walk = min_max_scale(walk, min_range, max_range)
+        # Resample data with replacement
+        bootstrap_data = np.random.choice(variable, size=len(variable))
 
-      info = variable.values
-      walk = info - (np.mean(info) - np.mean(walk))
+        # Simulate random walk based on bootstrap data
+        walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
+        walk += bootstrap_data.mean()
 
-      #Save random walk as one of the bootstrap samples
+        info = variable.values
+        walk = info - (np.mean(info) - np.mean(walk))
+
+        # Check if the mean of the walk is inside the desired range
+        walk_mean = walk.mean()
+        if mean_range_min <= walk_mean <= mean_range_max:
+            walk_mean_out_of_range = False
+
+      # Save random walk as one of the bootstrap samples
       bootstrap_samples[i] = walk.copy()
-    
+
     return bootstrap_samples
+
 
 def prob_in_distribution(data, x):
   """
