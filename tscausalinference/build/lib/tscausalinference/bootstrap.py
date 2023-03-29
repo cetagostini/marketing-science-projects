@@ -42,7 +42,7 @@ def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
       # Pad the beginning and end of the input array
       pad_size = smoother
       padded_walk = np.pad(walk, (pad_size, pad_size), mode='edge')
-      
+
       # Apply the smoothing filter
       walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
       walk = min_max_scale(walk_smoothed, min_range, max_range)
@@ -67,9 +67,8 @@ def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
 
       walk = min_max_scale(walk, min_range, max_range)
 
-
       info = variable.values
-      walk = info - (np.mean(walk) - np.mean(info))
+      walk = info - (np.mean(info) - np.mean(walk))
 
       #Save random walk as one of the bootstrap samples
       bootstrap_samples[i] = walk.copy()
