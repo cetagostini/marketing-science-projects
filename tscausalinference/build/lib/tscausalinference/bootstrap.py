@@ -6,14 +6,75 @@ from scipy.stats import norm
 
 from typing import Union
 
-from tscausalinference.seasonality import yearly_season, weekly_season
-
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def min_max_scale(data, min_range, max_range):
     data_min, data_max = data.min(), data.max()
     return (data - data_min) * (max_range - min_range) / (data_max - data_min) + min_range
+
+def structural_bootstrap(data, block_size):
+    num_blocks = int(np.ceil(len(data) / block_size))
+    block_indices = np.random.randint(0, len(data) - block_size + 1, size=num_blocks)
+    resampled_blocks = np.array([data[i:i + block_size] for i in block_indices])
+    resampled_data = resampled_blocks.flatten()[:len(data)]
+    return resampled_data
+
+def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
+    min_range = variable.min() * (1 - mape)
+    max_range = variable.max() * (mape + 1)
+    # Loop over number of bootstrap samples
+    for i in range(n_samples):
+
+      # Resample data with replacement
+      bootstrap_data = np.random.choice(variable, size=len(variable))#, replace=True)
+      
+      # Simulate random walk based on bootstrap data
+      walk = np.cumsum(np.random.randn(n_steps))
+      walk -= walk[0]
+
+      walk *= bootstrap_data.std() / walk.std()
+      walk += bootstrap_data.mean()
+
+      # Smooth the simulated random walk using a moving average filter
+      smoother = 2  # the amount of smoothing on either side
+      
+      # Pad the beginning and end of the input array
+      pad_size = smoother
+      padded_walk = np.pad(walk, (pad_size, pad_size), mode='edge')
+      
+      # Apply the smoothing filter
+      walk_smoothed = np.convolve(padded_walk, np.ones(2*smoother+1)/(2*smoother+1), mode='valid')
+      walk = min_max_scale(walk_smoothed, min_range, max_range)
+
+      bootstrap_samples[i] = walk.copy()
+
+    return bootstrap_samples
+
+def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
+    min_range = variable.min() * (1 - mape)
+    max_range = variable.max() * (mape + 1)
+
+    # Loop over number of bootstrap samples
+    for i in range(n_samples):
+
+      # Resample data with replacement
+      bootstrap_data = np.random.choice(variable, size=len(variable))
+      
+      # Simulate random walk based on bootstrap data
+      walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
+      walk += bootstrap_data.mean()
+
+      walk = min_max_scale(walk, min_range, max_range)
+
+
+      info = variable.values
+      walk = info - (np.mean(walk) - np.mean(info))
+
+      #Save random walk as one of the bootstrap samples
+      bootstrap_samples[i] = walk.copy()
+    
+    return bootstrap_samples
 
 def prob_in_distribution(data, x):
   """
@@ -42,13 +103,13 @@ def prob_in_distribution(data, x):
   cdf_upper = 1 - norm.cdf(upper_bound, mean, std)
 
   if x < lower_bound or x > upper_bound:
-      return 0.0
+    return 0.0
   else:
-      cdf_x = norm.cdf(x, mean, std)
-      if cdf_x <= 0.5:
-          return 2 * (cdf_x - cdf_lower) / (1 - cdf_lower - cdf_upper)
-      else:
-          return 2 * (1 - cdf_x + cdf_lower) / (1 - cdf_lower - cdf_upper)
+    cdf_x = norm.cdf(x, mean, std)
+    if cdf_x <= 0.5:
+        return 2 * (cdf_x - cdf_lower) / (1 - cdf_lower - cdf_upper)
+    else:
+        return 2 * (1 - cdf_x + cdf_lower) / (1 - cdf_lower - cdf_upper)
 
 def bootstrap_simulate(
                     variable: Union[np.array, pd.DataFrame] = None, 
@@ -84,27 +145,10 @@ def bootstrap_simulate(
     # Initialize array to hold bootstrap samples
     bootstrap_samples = np.empty((n_samples, n_steps))
 
-    min_range = variable.min() * (1 - mape)
-    max_range = variable.max() * (mape + 1)
-    
-    # Loop over number of bootstrap samples
-    for i in range(n_samples):
-
-        # Resample data with replacement
-        bootstrap_data = np.random.choice(variable, size=len(variable))
-        
-        # Simulate random walk based on bootstrap data
-        walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
-        walk += bootstrap_data.mean()
-
-        walk = min_max_scale(walk, min_range, max_range)
-
-        if prio:
-            info = variable.values
-            walk = info + (np.mean(walk) - np.mean(info))
-
-        #Save random walk as one of the bootstrap samples
-        bootstrap_samples[i] = walk.copy()
+    if prio:
+      bootstrap_samples = prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
+    else:
+      bootstrap_samples = random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
     
     return bootstrap_samples
     

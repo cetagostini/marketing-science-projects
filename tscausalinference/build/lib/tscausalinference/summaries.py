@@ -95,7 +95,7 @@ This means that the causal effect cannot be considered statistically significant
         )
     )
     
-def summary_intervention(data, intervention = None, int_metrics = None):
+def summary_intervention(data, intervention = None, int_metrics = None, stats_ranges = None):
     """
     Parameters
     ----------
@@ -110,8 +110,20 @@ def summary_intervention(data, intervention = None, int_metrics = None):
         No returns are defined, as the method simply generates a overview.
     """
     data = data.copy()
-    lower = data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat_lower.sum()
-    upper = data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat_upper.sum()
+
+    # Create two dates as strings
+    date_str1 = intervention[0]
+    date_str2 = intervention[1]
+
+    # Convert the strings to datetime objects
+    date1 = pd.to_datetime(date_str1)
+    date2 = pd.to_datetime(date_str2)
+
+    # Calculate the difference in days
+    days_diff = int((date2 - date1).days)
+
+    lower = stats_ranges[0] * days_diff
+    upper = stats_ranges[1] * days_diff
 
     strings_info = """
 +-----------------------+------------+
