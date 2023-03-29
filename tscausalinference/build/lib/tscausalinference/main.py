@@ -95,7 +95,7 @@ class tscausalinference:
             prio = prior
             )
         
-        self.stadisticts, self.stats_ranges, self.samples_means = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
+        self.stadisticts, self.stats_ranges, self.samples_means, self.norm_simulations = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
                                                                                     treatment = self.data.query(self.string_filter).y, 
                                                                                     simulations = self.simulations
                                                                                     )
@@ -129,7 +129,7 @@ class tscausalinference:
             plot_intervention(data = self.data, past_window = past_window, back_window = back_window, figsize = figsize, intervention = self.intervention)
         elif method == 'simulations':
             plot_simulations(data = self.data, past_window = past_window, back_window = back_window, figsize = figsize, simulation_number = simulation_number,
-                             intervention = self.intervention, simulations = self.simulations, stadisticts = self.stadisticts, 
+                             intervention = self.intervention, simulations = self.norm_simulations, stadisticts = self.stadisticts, 
                              stats_ranges = self.stats_ranges, samples_means = self.samples_means)
         elif method == 'decomposition':
             seasonal_decompose(data = self.data, intervention = self.intervention, figsize = figsize)
@@ -157,7 +157,7 @@ class tscausalinference:
             stadisticts = self.stadisticts, pre_int_metrics = self.pre_int_metrics, 
             int_metrics = self.int_metrics, intervention = self.intervention, n_samples = self.n_samples)
         elif method == 'detailed':
-            summary_intervention(data = self.data, intervention = self.intervention, int_metrics = self.int_metrics, stats_ranges = self.stats_ranges) 
+            summary_intervention(data = self.data, intervention = self.intervention, int_metrics = self.int_metrics) 
 
 class synth_dataframe:
     """
