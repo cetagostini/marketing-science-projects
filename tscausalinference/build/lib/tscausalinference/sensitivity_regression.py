@@ -171,7 +171,7 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                     prio = prio
                     )
             
-            stadisticts, stats_ranges, samples_means = bootstrap_p_value(control = temp_test[test_mask].yhat, 
+            stadisticts, stats_ranges, samples_means, norm_simulations = bootstrap_p_value(control = temp_test[test_mask].yhat, 
                                                                                         treatment = temp_test[test_mask].y, 
                                                                                         simulations = simulations
                                                                                         )

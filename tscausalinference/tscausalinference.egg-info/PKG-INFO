@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tscausalinference
-Version: 0.2.0.3
+Version: 0.2.0.4
 Summary: Bootstrap random walk simulations methodoly applied on top of Facebook Prophet to analyse causal effects
 Author: Carlos Trujillo
 Author-email: carlangastr@gmail.com

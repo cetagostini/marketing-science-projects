@@ -59,7 +59,6 @@ def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
 
       walk = min_max_scale(walk, min_range, max_range)
       walk = variable.values - (np.mean(variable.values) - np.mean(walk))
-      walk -= (np.mean(walk) - np.mean(variable.values))
 
       #Save random walk as one of the bootstrap samples
       bootstrap_samples[i] = walk.copy()
@@ -191,12 +190,14 @@ def bootstrap_p_value(
     mean_treatment = np.mean(treatment)
         
     bootstrapped_means = np.empty(len(simulations))
+    norm_simulations = simulations.copy()
     
-    for i in range(len(simulations)):
-        bootstrapped_means[i] = simulations[i].mean()
+    for i in range(len(norm_simulations)):
+        norm_simulations[i] -= mean
+        bootstrapped_means[i] = norm_simulations[i].mean()
     
     lower, upper = np.percentile(bootstrapped_means, [alpha / 2 * 100, (1 - alpha / 2) * 100])
     
     p_value = prob_in_distribution(bootstrapped_means, mean_treatment)
 
-    return [p_value], [lower, upper], bootstrapped_means
+    return [p_value], [lower, upper], bootstrapped_means, norm_simulations
