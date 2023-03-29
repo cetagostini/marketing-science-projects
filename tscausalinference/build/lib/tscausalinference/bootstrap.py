@@ -44,21 +44,25 @@ def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
     return bootstrap_samples
 
 def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
-    mean_range_min = (1 - mape) * 0.95
-    mean_range_max = (mape + 1) * 1.05
-
-    factor_list = np.linspace(mean_range_min, mean_range_max, n_steps)
+    min_range = variable.min() * (1 - mape)
+    max_range = variable.max() * (mape + 1)
 
     # Loop over number of bootstrap samples
     for i in range(n_samples):
 
-      # randomly select a value from the array
-      factor = np.random.choice(factor_list)
-      walk = variable.values * factor
+      # Resample data with replacement
+      bootstrap_data = np.random.choice(variable, size=len(variable))
+      
+      # Simulate random walk based on bootstrap data
+      walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
+      walk += bootstrap_data.mean()
 
-      # Save random walk as one of the bootstrap samples
-      bootstrap_samples[i] = walk.copy()        
+      walk = min_max_scale(walk, min_range, max_range)
+      walk = variable.values - (np.mean(variable.values) - np.mean(walk))
 
+      #Save random walk as one of the bootstrap samples
+      bootstrap_samples[i] = walk.copy()
+    
     return bootstrap_samples
 
 def prob_in_distribution(data, x):
