@@ -44,36 +44,17 @@ def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
     return bootstrap_samples
 
 def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
-    mean_range_min = variable.mean() * (1 - mape)
-    mean_range_max = variable.mean() * (mape + 1)
+    mean_range_min = (1 - mape) * 0.95
+    mean_range_max = (mape + 1) * 1.05
+
+    factor_list = np.linspace(mean_range_min, mean_range_max, n_steps)
 
     # Loop over number of bootstrap samples
     for i in range(n_samples):
 
-      # Resample data with replacement
-      bootstrap_data = np.random.choice(variable, size=len(variable))
-
-      # Simulate random walk based on bootstrap data
-      walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
-      walk += bootstrap_data.mean()
-
-      info = variable.values
-      walk = info - (np.mean(info) - np.mean(walk))
-      
-      # Check if the mean of the walk is outside the desired range
-      walk_mean = walk.mean()
-      
-      if walk_mean < mean_range_min:
-          scaling_factor = mean_range_min / walk_mean
-          walk = walk * scaling_factor
-          # Adjust the walk mean to the desired minimum range
-          walk += mean_range_min - walk.mean()
-      
-      elif walk_mean > mean_range_max:
-          scaling_factor = mean_range_max / walk_mean
-          walk = walk * scaling_factor
-          # Adjust the walk mean to the desired maximum range
-          walk += mean_range_max - walk.mean()
+      # randomly select a value from the array
+      factor = np.random.choice(factor_list)
+      walk = variable.values * factor
 
       # Save random walk as one of the bootstrap samples
       bootstrap_samples[i] = walk.copy()        
