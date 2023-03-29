@@ -188,12 +188,13 @@ def bootstrap_p_value(
     # Calculate the mean of the data
     mean = np.mean(control)
     mean_treatment = np.mean(treatment)
+    mean_simulations = np.mean(simulations)
+    diff = mean_simulations - mean
         
     bootstrapped_means = np.empty(len(simulations))
     norm_simulations = simulations.copy()
     
     for i in range(len(norm_simulations)):
-        diff = norm_simulations[i].mean() - mean
         norm_simulations[i] -= diff
         bootstrapped_means[i] = norm_simulations[i].mean()
     
