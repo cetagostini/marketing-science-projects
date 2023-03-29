@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from scipy.stats import t
-from scipy.stats import norm
+from scipy.stats import norm, boxcox
 
 from typing import Union
 
@@ -51,29 +50,35 @@ def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
     # Loop over number of bootstrap samples
     for i in range(n_samples):
 
-      walk_mean_out_of_range = True
-      while walk_mean_out_of_range:
+      # Resample data with replacement
+      bootstrap_data = np.random.choice(variable, size=len(variable))
 
-        # Resample data with replacement
-        bootstrap_data = np.random.choice(variable, size=len(variable))
+      # Simulate random walk based on bootstrap data
+      walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
+      walk += bootstrap_data.mean()
 
-        # Simulate random walk based on bootstrap data
-        walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
-        walk += bootstrap_data.mean()
-
-        info = variable.values
-        walk = info - (np.mean(info) - np.mean(walk))
-
-        # Check if the mean of the walk is inside the desired range
-        walk_mean = walk.mean()
-        if mean_range_min <= walk_mean <= mean_range_max:
-            walk_mean_out_of_range = False
+      info = variable.values
+      walk = info - (np.mean(info) - np.mean(walk))
+      
+      # Check if the mean of the walk is outside the desired range
+      walk_mean = walk.mean()
+      
+      if walk_mean < mean_range_min:
+          scaling_factor = mean_range_min / walk_mean
+          walk = walk * scaling_factor
+          # Adjust the walk mean to the desired minimum range
+          walk += mean_range_min - walk.mean()
+      
+      elif walk_mean > mean_range_max:
+          scaling_factor = mean_range_max / walk_mean
+          walk = walk * scaling_factor
+          # Adjust the walk mean to the desired maximum range
+          walk += mean_range_max - walk.mean()
 
       # Save random walk as one of the bootstrap samples
-      bootstrap_samples[i] = walk.copy()
+      bootstrap_samples[i] = walk.copy()        
 
     return bootstrap_samples
-
 
 def prob_in_distribution(data, x):
   """
