@@ -15,6 +15,10 @@ import itertools
 
 from tscausalinference.evaluators import mape
 
+import logging
+
+logging.getLogger('prophet').setLevel(logging.WARNING)
+
 def prophet_regression(df: DataFrame = pd.DataFrame(), 
                          intervention = None, 
                          cross_validation_steps: int = 5, 
