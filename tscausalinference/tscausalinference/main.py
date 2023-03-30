@@ -155,9 +155,10 @@ class tscausalinference:
         if method == 'general':
             summary(data = self.data, statistical_significance = statistical_significance, 
             stadisticts = self.stadisticts, pre_int_metrics = self.pre_int_metrics, 
-            int_metrics = self.int_metrics, intervention = self.intervention, n_samples = self.n_samples)
+            int_metrics = self.int_metrics, intervention = self.intervention, n_samples = self.n_samples, ci_int = self.stats_ranges)
         elif method == 'detailed':
-            summary_intervention(data = self.data, intervention = self.intervention, int_metrics = self.int_metrics) 
+            summary_intervention(data = self.data, intervention = self.intervention, 
+                                 int_metrics = self.int_metrics, stadisticts = self.stats_ranges) 
 
 class synth_dataframe:
     """

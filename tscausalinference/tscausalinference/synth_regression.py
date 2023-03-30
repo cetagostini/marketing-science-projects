@@ -147,7 +147,8 @@ def synth_analysis(df: DataFrame = None,
     ['Actual cumulative', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum()],
     ['Predicted cumulative:', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum()],
     ['Difference', data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].point_effects.sum()],
-    ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum() -1)*100]
+    ['Change (%)', (data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y.sum() / data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat.sum() -1)*100],
+    ['MAPE (%)', mape(y_pred = data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].yhat, y_true = data[(data.ds >= intervention[0]) & (data.ds <= intervention[1])].y)]
     ]
     
     return data, pre_int_metrics, int_metrics, parameters
