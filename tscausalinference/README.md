@@ -1,6 +1,6 @@
 # tscausalinference
 
-`tscausalinference` is a Python library for performing causal inference analysis over time series data. It uses the counterfactual methodology on top of the Prophet time-series forecasting library, with the help of Bootstrap simulations method for statistical significance testing and to manage uncertainty.
+`tscausalinference` is a Python library for performing causal inference analysis over time series data. It uses the counterfactual methodology on top of the Prophet time-series forecasting library, with the help of Random Walk simulations method through bootstrap for statistical significance testing and to manage uncertainty.
 
 ## How it works
 
@@ -8,14 +8,14 @@ Causal inference is a family of statistical methods used to determine the cause 
 
 The Prophet model is used to generate control data by making predictions about what would have happened in the absence of the intervention. This control data represents a counterfactual scenario, where the intervention did not occur, and allows us to compare the actual outcomes to what would have happened if the intervention had not been implemented. 
 
-To manage the uncertainty of the prediction and to test the statistical significance of the results, the `tscausalinference` library performs Monte Carlo simulations through the Bootstrap method. This method involves resampling a single dataset to create many simulated datasets. The library creates a set of alternative random walks from the synthetic control data, and builds a distribution of each mean from the complete period of the simulation. 
+To manage the uncertainty of the prediction and to test the statistical significance of the results, the `tscausalinference` library performs Random Walk Monte Carlo simulations through the Bootstrap method. This method involves resampling a single dataset to create many simulated datasets, getting their properties and using those to model the walk. The library creates a set of alternative random walks from the synthetic control data, and builds a distribution of each mean from the complete period of the simulation. 
 
 The real mean of the period is then compared against this distribution, and we calculate how extreme this mean value is based on the distribution of **what should happen** using the cumulative distribution function (CDF). This helps us to determine the statistical significance of the effect.
 
 The library works as follows:
 
 1. Build a Prophet model to create a synthetic control group.
-2. Perform Monte Carlo simulations using the Bootstrap method to create a set of alternative random walks from the synthetic control data.
+2. Perform Random Walk Monte Carlo simulations using the Bootstrap method to create a set of alternative random walks from the synthetic control data.
 3. Build a distribution of each mean from the complete period of the simulation.
 4. Compare the real mean of the period against this distribution using the CDF to determine the statistical significance of the effect.
 
