@@ -11,7 +11,7 @@ from tscausalinference.bootstrap import bootstrap_simulate, bootstrap_p_value
 from tscausalinference.load_synth_data import create_synth_dataframe
 from tscausalinference.sensitivity_regression import sensitivity_analysis
 from tscausalinference.plots import plot_intervention, plot_simulations, seasonal_decompose, sensitivity_curve, plot_training, plot_diagnostic
-from tscausalinference.summaries import summary, summary_intervention
+from tscausalinference.summaries import summary, summary_intervention, summary_incrementality
 from tscausalinference.evaluators import mde_area
 
 import warnings
@@ -137,7 +137,7 @@ class tscausalinference:
     def model_parameters(self):
         return self.hyper_parameters
     
-    def summarization(self, statistical_significance = 0.05, method = 'general'):
+    def summarization(self,  method = 'general', statistical_significance = 0.05, interrupted_variable = None):
         """
         Generates a summary report for the time series causal inference analysis.
 
@@ -148,8 +148,8 @@ class tscausalinference:
         Returns:
             None
         """
-        if method not in ['general','detailed']:
-            error = "Your method should be defined as one of these -> ('general','detailed') "
+        if method not in ['general','detailed','incremental']:
+            error = "Your method should be defined as one of these -> ('general','detailed','incremental') "
             raise TypeError(error)
 
         if method == 'general':
@@ -158,7 +158,9 @@ class tscausalinference:
             int_metrics = self.int_metrics, intervention = self.intervention, n_samples = self.n_samples, ci_int = self.stats_ranges)
         elif method == 'detailed':
             summary_intervention(data = self.data, intervention = self.intervention, 
-                                 int_metrics = self.int_metrics, stadisticts = self.stats_ranges) 
+                                 int_metrics = self.int_metrics, stadisticts = self.stats_ranges)
+        elif method == 'incremental':
+            summary_incrementality(variable = interrupted_variable, intervention = self.intervention, int_metrics = self.int_metric, stadisticts = self.stats_ranges) 
 
 class synth_dataframe:
     """
