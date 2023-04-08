@@ -137,7 +137,7 @@ class tscausalinference:
     def model_parameters(self):
         return self.hyper_parameters
     
-    def summarization(self,  method = 'general', statistical_significance = 0.05, interrupted_variable = None):
+    def summarization(self,  method = 'general', statistical_significance = 0.05, interrupted_variable = None, window = 30):
         """
         Generates a summary report for the time series causal inference analysis.
 
@@ -160,7 +160,7 @@ class tscausalinference:
             summary_intervention(data = self.data, intervention = self.intervention, 
                                  int_metrics = self.int_metrics, stadisticts = self.stats_ranges)
         elif method == 'incremental':
-            summary_incrementality(variable = interrupted_variable, intervention = self.intervention, int_metrics = self.int_metric, stadisticts = self.stats_ranges) 
+            summary_incrementality(variable = interrupted_variable, intervention = self.intervention, int_metrics = self.int_metrics, window = window) 
 
 class synth_dataframe:
     """

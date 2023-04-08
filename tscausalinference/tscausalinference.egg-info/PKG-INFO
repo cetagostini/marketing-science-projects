@@ -128,7 +128,7 @@ model_check = sensitivity(
     verbose=True,
     autocorrelation = False,
     n_samples=1000)
-model_check.run(prio = False)
+model_check.run(prior = False)
 model_check.plot()
 ```
 ![sensitivity Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/sensitivity.png)
@@ -150,23 +150,18 @@ model = tsci(data = df, intervention = intervention, regressors = ['a','b'],
 model.summarization()
 ```
 ```md
-    Considerations
-    --------------
-    a) The standard deviation of the residuals is 0.12762. This means that the noise in your data is low.
-    b) Based on this information, in order for your effect to be detectable, it should be greater than 15%.
+Summary
+-------
+During the intervention period, the response variable had an average value of approximately 295.04. 
+By contrast, in the absence of an intervention, we would have expected an average response of 272.87. 
+The 95% confidence interval of this counterfactual prediction is 223.68 to 321.77.
 
-    Summary
-    -------
-    During the intervention period, the response variable had an average value of approximately 21.78. 
-    By contrast, in the absence of an intervention, we would have expected an average response of 19.15. 
-    The 95% confidence interval of this counterfactual prediction is 18.9 to 19.39.
+The usual error of your model is between -9.45% to 9.45% , during the intervention period was 12.45%. 
+suggesting that the model can explain well what should happen, and that the differences are not significant.
 
-    The usual error of your model is 2.23%, while the difference during the intervention period is 13.77%. 
-    During the intervention, the error increase 6.18% (11.54 percentage points), suggesting some factor is impacting the quality of the model, and the differences are significant.
-
-    The probability of obtaining this effect by chance is very small 
-    (after 10000 simulations, bootstrap probability p = 0.002). 
-    This means that the causal effect can be considered statistically significant.
+The probability of obtaining this effect by chance is not small 
+(after 10000 simulations, bootstrap probability p = 0.38485). 
+This means that the causal effect cannot be considered statistically significant.
 ```
 
 ## Extra documentation

@@ -133,42 +133,46 @@ def summary_intervention(data, intervention = None, int_metrics = None, stadisti
         ).strip()
     )
 
-def summary_incrementality(variable = None, intervention = None, int_metrics = None, stadisticts = None):
+def summary_incrementality(variable = None, intervention = None, int_metrics = None, window = 90):
     
     intervention_dates = [pd.to_datetime(intervention[0]), pd.to_datetime(intervention[1])]
 
     # Filter the variable results to the last 90 days before intervention[0]
-    variable_filt = variable[(intervention_dates[0] - np.timedelta64(90, 'D')):intervention_dates[0]]
+    variable_filt = variable[(intervention_dates[0] - np.timedelta64(window, 'D')):intervention_dates[0]]
 
     # Calculate the mean and median of the last 90 days of the variable
     var_mean_90 = np.mean(variable_filt)
-    var_median_90 = np.median(variable_filt)
 
     # Calculate the increment on the variable mean during the intervention period
-    var_mean_diff = np.mean(variable[intervention_dates[0]:intervention_dates[1]]) - var_mean_90
-
-    # Calculate the difference between the intervention metrics and stats
-    int_metrics_diff = abs(round(int_metrics[0][1], 0)) - (stadisticts[1] * (intervention_dates[1] - intervention_dates[0]).days)
+    var_intervention = np.mean(variable[intervention_dates[0]:intervention_dates[1]])
+    var_mean_diff = var_intervention - var_mean_90
 
     # Estimate the additional unit added on int_metrics by each unit added on the variable during intervention
-    incremental_unit = int_metrics_diff / (var_mean_diff * (intervention_dates[1] - intervention_dates[0]).days)
+    incremental_unit = (var_mean_diff * (intervention_dates[1] - intervention_dates[0]).days) / abs(round(int_metrics[2][1], 0))
     
     # Calculate the percentage increase in the intervention period
-    percentage_increase = var_mean_diff / var_mean_90 * 100
+    percentage_increase = (var_mean_diff / var_mean_90) * 100
+
+    str_window = str(window)
+
+    table_info = [[f'Last {str_window} days Mean', var_mean_90],
+                    ['Intervention Mean',var_intervention], ['Increase (%)',percentage_increase], 
+                    ['Diff. Units',var_mean_diff],['Incremental Unit Value',incremental_unit]
+                    ]
 
     # Format the print statement
     print(f"""\
 summary
----------
-The incremental value of each point increase on the variable is {incremental_unit:.2f} on {int_metrics[0]}.
+-------
+Each extra unit on ´y´ represents {incremental_unit:.2f} units on your variable.
 
-+------------------------+-------------+
-| DETAILED OVERVIEW      |    VALUE    |
-+------------------------+-------------+
-| Last 90 days Mean      |   {var_mean_90:.2f}   |
-| Last 90 days Median    |   {var_median_90:.2f}   |
-| Increase (%)           |   {percentage_increase:.2f}%   |
-| Intervention Mean Diff |   {var_mean_diff:.2f}   |
-| Incremental Unit Value |   {incremental_unit:.2f}   |
-+------------------------+-------------+\
++-----------------------+------------+
+ / / / /   DETAILED OVERVIEW   / / / /
++-----------------------+------------+
 """)
+
+    print(
+        tabulate(table_info, 
+        headers=['METRIC', 'VALUE'], 
+        tablefmt='pipe')
+        )
