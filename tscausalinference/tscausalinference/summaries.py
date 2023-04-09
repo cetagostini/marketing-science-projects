@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from tabulate import tabulate
 
@@ -131,3 +132,47 @@ def summary_intervention(data, intervention = None, int_metrics = None, stadisti
             )
         ).strip()
     )
+
+def summary_incrementality(variable = None, intervention = None, int_metrics = None, window = 90):
+    
+    intervention_dates = [pd.to_datetime(intervention[0]), pd.to_datetime(intervention[1])]
+
+    # Filter the variable results to the last 90 days before intervention[0]
+    variable_filt = variable[(intervention_dates[0] - np.timedelta64(window, 'D')):intervention_dates[0]]
+
+    # Calculate the mean and median of the last 90 days of the variable
+    var_mean_90 = np.mean(variable_filt)
+
+    # Calculate the increment on the variable mean during the intervention period
+    var_intervention = np.mean(variable[intervention_dates[0]:intervention_dates[1]])
+    var_mean_diff = var_intervention - var_mean_90
+
+    # Estimate the additional unit added on int_metrics by each unit added on the variable during intervention
+    incremental_unit = (var_mean_diff * (intervention_dates[1] - intervention_dates[0]).days) / abs(round(int_metrics[2][1], 0))
+    
+    # Calculate the percentage increase in the intervention period
+    percentage_increase = (var_mean_diff / var_mean_90) * 100
+
+    str_window = str(window)
+
+    table_info = [[f'Last {str_window} days Mean', var_mean_90],
+                    ['Intervention Mean',var_intervention], ['Increase (%)',percentage_increase], 
+                    ['Diff. Units',var_mean_diff],['Incremental Unit Value',incremental_unit]
+                    ]
+
+    # Format the print statement
+    print(f"""\
+summary
+-------
+Each extra unit on ´y´ represents {incremental_unit:.2f} units on your variable.
+
++-----------------------+------------+
+ / / / /   DETAILED OVERVIEW   / / / /
++-----------------------+------------+
+""")
+
+    print(
+        tabulate(table_info, 
+        headers=['METRIC', 'VALUE'], 
+        tablefmt='pipe')
+        )
