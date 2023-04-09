@@ -61,6 +61,27 @@ model.plot()
 ```
 ![plot_intervention Method](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/plots/output.png)
 
+```python
+model..summarization(method = 'incremental', interrupted_variable = df.set_index('ds').regressor1, window=180)
+```
+```md
+summary
+-------
+Each extra unit on ´y´ represents 5.23 units on your variable.
+
++-----------------------+------------+
+ / / / /   DETAILED OVERVIEW   / / / /
++-----------------------+------------+
+
+| METRIC                 |     VALUE |
+|:-----------------------|----------:|
+| Last 180 days Mean     | 1502.74   |
+| Intervention Mean      | 1809.59   |
+| Increase (%)           |  30.4029  |
+| Variable Change        |  307      |
+| Incremental Unit Value |  5.231456 |
+```
+
 ### Create your own data
 ```python
 from tscausalinference import synth_dataframe
