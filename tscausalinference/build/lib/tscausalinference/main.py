@@ -66,12 +66,13 @@ class tscausalinference:
         
         self.string_filter = "ds >= '{}' & ds <= '{}'".format(intervention[0], intervention[1])
         
-    def run(self, prior = False):
+    def run(self, prior = False, method = 'BRW'):
         """
         Runs the causal analysis with the specified configuration.
 
         Args:
-            prio (bool, optional): Whether to use a priori information from seasonality and trend in the analysis. Defaults to False.
+            prior (bool, optional): Whether to use a priori information from seasonality and trend in the analysis. Defaults to False.
+            method (string, optional): Available only when prior is TRUE, Bootstrap Random Walk (BRW) or Structural Bootstrap (BS)
 
         Returns:
             self: The tscausalinference object, updated with the results of the causal analysis.      
@@ -92,7 +93,8 @@ class tscausalinference:
             n_samples = self.n_samples, 
             n_steps = len(self.data.query(self.string_filter).index),
             mape = abs(round(self.pre_int_metrics[2][1],6)) / 100,
-            prio = prior
+            prio = prior,
+            method = method
             )
         
         self.stadisticts, self.stats_ranges, self.samples_means, self.norm_simulations = bootstrap_p_value(control = self.data.query(self.string_filter).yhat, 
@@ -264,7 +266,7 @@ class sensitivity:
         self.verbose = verbose
         self.n_samples = n_samples
 
-    def run(self, prior = False):
+    def run(self, prior = False, method = 'BRW'):
         """
         Runs the sensitivity analysis with the specified configuration.
 
@@ -288,7 +290,8 @@ class sensitivity:
                          n_samples = self.n_samples,
                          prio = prior,
                          autocorrelation = self.autocorrelation,
-                         model_type = self.model_type)
+                         model_type = self.model_type,
+                         method = method)
         return self
     
     def data_analysis(self):

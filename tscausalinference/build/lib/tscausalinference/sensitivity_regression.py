@@ -132,7 +132,8 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                          n_samples = 1000,
                          model_type = 'gam',
                          autocorrelation = False,
-                         prio = False):
+                         prio = False,
+                         method = 'BRW'):
         
         df_temp = df.copy()
         
@@ -168,7 +169,8 @@ def sensitivity_analysis(df: DataFrame = pd.DataFrame(),
                     n_samples = n_samples, 
                     n_steps = len(temp_test[test_mask].index),
                     mape = abs(round(test[2][1],6)) / 100,
-                    prio = prio
+                    prio = prio,
+                    method = method
                     )
             
             stadisticts, stats_ranges, samples_means, norm_simulations = bootstrap_p_value(control = temp_test[test_mask].yhat, 
