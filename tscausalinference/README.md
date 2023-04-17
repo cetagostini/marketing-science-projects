@@ -171,6 +171,9 @@ The probability of obtaining this effect by chance is not small
 This means that the causal effect cannot be considered statistically significant.
 ```
 
+## Articles:
+1. Carlos Trujillo by [Medium](https://medium.com/@carlangastr/combining-random-walks-and-bootstrap-for-causal-inference-analysis-on-time-series-2ca89f95bbe6)
+
 ## Extra documentation
 1. Check out [Pypi](https://pypi.org/project/tscausalinference) for more information.
 2. Check out [Introduction Notebooks](https://github.com/carlangastr/marketing-science-projects/blob/main/tscausalinference/introduction_notebooks/basic.ipynb) to see an example of usage.
@@ -183,7 +186,6 @@ This means that the causal effect cannot be considered statistically significant
 4. [Causal Impact on python](https://www.youtube.com/watch?v=GTgZfCltMm8&t=272s)
 5. [Causal Inference Using Bayesian Structural Time-Series Models](https://towardsdatascience.com/causal-inference-using-bayesian-structural-time-series-models-ab1a3da45cd0)
 6. [Wikipedia](https://en.wikipedia.org/wiki/Random_walk)
-
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 from scipy.stats import norm, boxcox
+import statsmodels.api as sm
 
 from typing import Union
 
@@ -9,61 +10,154 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def min_max_scale(data, min_range, max_range):
+    """
+    The function min_max_scale takes in an array of data, a minimum value for the range, and a maximum value for the range. It returns the data transformed into the specified range.
+
+    Parameters:
+    -----------
+      data: array-like, shape (n_samples,)
+      The data to be transformed.
+      min_range: scalar or array-like, shape (n_features,)
+      The minimum value of the range to transform the data.
+      max_range: scalar or array-like, shape (n_features,)
+      The maximum value of the range to transform the data.
+    
+    Returns:
+    --------
+      scaled_data: array-like, shape (n_samples,)
+      The transformed data within the specified range.
+    
+    Examples:
+    ---------
+    >>> data = [1, 2, 3, 4, 5]
+    >>> min_range = 0
+    >>> max_range = 10
+    >>> scaled_data = min_max_scale(data, min_range, max_range)
+    >>> print(scaled_data)
+    >>> Output: [0. 2. 4. 6. 10.]
+    """
+
     data_min, data_max = data.min(), data.max()
     return (data - data_min) * (max_range - min_range) / (data_max - data_min) + min_range
 
-def structural_bootstrap(data, block_size):
-    num_blocks = int(np.ceil(len(data) / block_size))
-    block_indices = np.random.randint(0, len(data) - block_size + 1, size=num_blocks)
-    resampled_blocks = np.array([data[i:i + block_size] for i in block_indices])
-    resampled_data = resampled_blocks.flatten()[:len(data)]
-    return resampled_data
+def structural_bootstrap(data, num_bootstraps, block_length):
+  """
+  The function structural_bootstrap performs a structural bootstrap on a time series data. It takes in a time series data, the number of bootstraps to perform, and the block length for the decomposition. It returns an array of bootstrapped time series data.
 
-def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
+  Parameters:
+  -----------
+    data: The time series data to perform the bootstrap on.
+    num_bootstraps (int): The number of bootstraps to perform.
+    block_length (int): The length of the blocks to decompose the data into.
+  
+  Returns:
+  --------
+    bootstrapped_data: An array of bootstrapped time series data.
 
-    # Loop over number of bootstrap samples
-    for i in range(n_samples):
+  """
+  new_series = data.copy()
+  decomposition = sm.tsa.seasonal_decompose(new_series, period=block_length)
 
-      # Resample data with replacement
-      bootstrap_data = np.random.choice(variable, size=len(variable))#, replace=True)
-      
-      # Simulate random walk based on bootstrap data
-      walk = np.cumsum(np.random.randn(n_steps))
-      walk -= walk[0]
+  trend = decomposition.trend
+  seasonal = decomposition.seasonal
+  remainder = decomposition.resid
 
-      walk *= bootstrap_data.std() / walk.std()
-      walk += bootstrap_data.mean()
+  # Remove missing values in trend and remainder
+  trend = trend[np.isfinite(trend)]
+  remainder = remainder[np.isfinite(remainder)]
 
-      # Smooth the simulated random walk using an exponential moving average filter
-      smoother = 2  # the amount of smoothing on either side
-      alpha = 1 / (smoother + 1)
-      walk_smoothed = pd.Series(walk).ewm(alpha=alpha).mean().values
+  n = len(trend)
+  num_blocks = n - block_length + 1
+  remainder_blocks = np.array([remainder[i:i+block_length] for i in range(num_blocks)])
 
-      bootstrap_samples[i] = walk_smoothed.copy()
+  bootstrapped_data = np.empty((num_bootstraps, n))
+  for i in range(num_bootstraps):
+    bootstrap_indices = np.random.randint(num_blocks, size=(n // block_length) + 2)
+    bootstrap_blocks = remainder_blocks[bootstrap_indices]
 
-    return bootstrap_samples
+    bootstrap_remainder = np.concatenate(bootstrap_blocks)[:n]
+    bootstrap_data = trend + seasonal[block_length // 2 : -(block_length // 2)] + bootstrap_remainder
+
+    bootstrapped_data[i] = bootstrap_data
+
+  return bootstrapped_data
+
+def random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable):
+  """
+  Performs a random walk bootstrap on the given variable using the bootstrap samples.
+
+  Args:
+      bootstrap_samples: array-like, shape (n_samples, n_steps)
+          The bootstrap samples to use for resampling the data.
+      n_samples: int
+          The number of samples to generate.
+      n_steps: int
+          The number of steps to simulate for each sample.
+      variable: array-like, shape (n,)
+          The variable to simulate the random walk on.
+
+  Returns:
+      bootstrap_samples: array-like, shape (n_samples, n_steps)
+          An array of bootstrapped time series data.
+  """
+  # Resample data with replacement
+  bootstrap_data = np.random.choice(variable, size=(n_samples, n_steps))
+
+  # Simulate random walk based on bootstrap data
+  walk = np.cumsum(np.random.randn(n_samples, n_steps), axis=1)
+  walk -= walk[:, 0][:, np.newaxis]
+
+  std_ratio = bootstrap_data.std(axis=1)[:, np.newaxis] / walk.std(axis=1)[:, np.newaxis]
+  walk *= std_ratio
+  walk += bootstrap_data.mean(axis=1)[:, np.newaxis]
+
+  # Smooth the simulated random walks using an exponential moving average filter
+  smoother = 2  # the amount of smoothing on either side
+  alpha = 1 / (smoother + 1)
+  walk_smoothed = pd.DataFrame(walk).ewm(alpha=alpha).mean().values
+
+  bootstrap_samples = walk_smoothed.copy()
+
+  return bootstrap_samples
 
 def prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape):
-    min_range = variable.min() * (1 - mape)
-    max_range = variable.max() * (mape + 1)
+  """
+  Performs a prior bootstrap on the given variable using the bootstrap samples.
 
-    # Loop over number of bootstrap samples
-    for i in range(n_samples):
+  Args:
+      bootstrap_samples: array-like, shape (n_samples, n_steps)
+          The bootstrap samples to use for resampling the data.
+      n_samples: int
+          The number of samples to generate.
+      n_steps: int
+          The number of steps to simulate for each sample.
+      variable: array-like, shape (n,)
+          The variable to simulate the random walk on.
+      mape: float
+          The maximum percentage deviation allowed for the prior.
 
-      # Resample data with replacement
-      bootstrap_data = np.random.choice(variable, size=len(variable))
-      
-      # Simulate random walk based on bootstrap data
-      walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(), size=n_steps))
-      walk += bootstrap_data.mean()
+  Returns:
+      bootstrap_samples: array-like, shape (n_samples, n_steps)
+          An array of bootstrapped time series data.
+  """
+  min_range = variable.min() * (1 - mape)
+  max_range = variable.max() * (mape + 1)
 
-      walk = min_max_scale(walk, min_range, max_range)
-      walk = variable.values - (np.mean(variable.values) - np.mean(walk))
+  variable = np.array(variable)
 
-      #Save random walk as one of the bootstrap samples
-      bootstrap_samples[i] = walk.copy()
-    
-    return bootstrap_samples
+  # Resample data with replacement
+  bootstrap_data = np.random.choice(variable, size=(n_samples, n_steps))
+
+  # Simulate random walk based on bootstrap data
+  walk = np.cumsum(np.random.normal(loc=0, scale=bootstrap_data.std(axis=1)[:, np.newaxis], size=(n_samples, n_steps)), axis=1)
+  walk += bootstrap_data.mean(axis=1)[:, np.newaxis]
+
+  walk = min_max_scale(walk, min_range, max_range)
+  walk = variable - (np.mean(variable) - np.mean(walk, axis=1)[:, np.newaxis])
+
+  bootstrap_samples = walk.copy()
+
+  return bootstrap_samples
 
 def prob_in_distribution(data, x):
   """
@@ -105,39 +199,39 @@ def bootstrap_simulate(
                     n_samples: int = 1500, 
                     n_steps: int = None,
                     mape: float = None,
-                    prio = False):
+                    prio = False,
+                    method = 'BRW'):
     """
-    Generate an array of bootstrap samples for a given dataset.
+    Performs a bootstrap simulation on the given variable and returns an array of bootstrapped time series data.
 
     Args:
-    - data: a numpy array or pandas dataframe containing the data to be resampled
-    - n_samples: an integer representing the number of bootstrap samples to generate
-    - n_steps: an integer representing the number of steps in the random walk simulation; if None, defaults to the
-      length of the input data
+        variable: array-like, shape (n,)
+            The variable to perform the bootstrap simulation on.
+        n_samples: int, default=1500
+            The number of bootstraps to generate.
+        n_steps: int, default=None
+            The number of steps to simulate for each sample.
+        mape: float, default=None
+            The maximum percentage deviation allowed for the prior.
+        prio: bool, default=False
+            Whether to use a prior bootstrap or not.
+        method: {'BRW', 'SB'}, default='BRW'
+            The method to use for the bootstrap simulation.
 
     Returns:
-    - bootstrap_samples: a numpy array of shape (n_samples, n_steps) containing the bootstrap samples
-
-    Notes:
-    - This function uses the bootstrap method to resample the input data with replacement.
-    - For each bootstrap sample, a random walk is simulated based on the resampled data.
-    - The random walk starts at the mean of the resampled data, and each step is a random draw from a standard normal
-      distribution.
-    - The variance of the random walk is adjusted to match the variance of the resampled data.
-    - The resulting random walk is saved as one of the bootstrap samples.
-    - The function returns an array of shape (n_samples, n_steps), where each row represents a bootstrap sample.
-
-    Example Usage:
-    >>> data = np.array([1, 2, 3, 4, 5])
-    >>> bootstrap_simulate(data, n_samples=1000, n_steps=10)
+        bootstrap_samples: array-like, shape (n_samples, n_steps)
+            An array of bootstrapped time series data.
     """
     # Initialize array to hold bootstrap samples
     bootstrap_samples = np.empty((n_samples, n_steps))
 
     if prio:
-      bootstrap_samples = prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
+      if method == 'BRW':
+        bootstrap_samples = prior_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
+      elif method == 'SB':
+        bootstrap_samples = structural_bootstrap(data = variable, num_bootstraps = n_samples, block_length = 7)
     else:
-      bootstrap_samples = random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable, mape)
+      bootstrap_samples = random_walk_bootstrap(bootstrap_samples, n_samples, n_steps, variable)
     
     return bootstrap_samples
     
@@ -148,41 +242,30 @@ def bootstrap_p_value(
                     alpha: float = 0.05
                     ):
     """
-    Calculate the p-value for a difference in means between 
-    a control group and a treatment group using the bootstrap method.
+    Calculates the p-value of the difference between the means of the control and treatment groups using a bootstrap test.
 
     Args:
-    - control: a numpy array or pandas dataframe containing data from the control group
-    - treatment: a numpy array or pandas dataframe containing data from the treatment group
-    - simulations: a numpy array of bootstrap samples generated using the `bootstrap_simulate` function
-    - alpha: a float representing the significance level for the hypothesis test; defaults to 0.05
-    - mape: a float representing the maximum allowable percent error for the bootstrapped means; if None, no error
-      adjustment is made
+        control: array-like, shape (n,)
+            The control group data.
+        treatment: array-like, shape (m,)
+            The treatment group data.
+        simulations: array-like, shape (n_samples, n_steps)
+            An array of bootstrapped time series data.
+        alpha: float, default=0.05
+            The level of significance for the hypothesis test.
 
     Returns:
-    - p_value: a list containing a single float representing the calculated p-value
-    - confidence_interval: a list containing two floats representing the lower and upper bounds of the confidence
-      interval for the difference in means
-    - bootstrapped_means: a numpy array containing the bootstrapped means used to calculate the p-value and confidence
-      interval
+        p_value: list of float
+            The p-value of the hypothesis test.
+        confidence_interval: list of float
+            The confidence interval of the hypothesis test.
+        bootstrapped_means: array-like, shape (n_samples,)
+            An array of the means of the bootstrapped time series data.
+        norm_simulations: array-like, shape (n_samples, n_steps)
+            An array of the normalized bootstrapped time series data.
 
-    Notes:
-    - This function assumes that the data in both control and treatment groups are normally distributed.
-    - The p-value is calculated using a two-sided hypothesis test.
-    - The null hypothesis is that the means of the two groups are equal.
-    - The alternative hypothesis is that the means of the two groups are not equal.
-    - The p-value is calculated as the proportion of bootstrapped means that are more extreme than the observed
-      difference in means between the control and treatment groups.
-    - A confidence interval is also calculated for the difference in means, based on the bootstrapped means.
-    - If the `mape` argument is provided, the bootstrapped means are adjusted to account for potential error in the
-      bootstrap sampling process.
-    - The `prob_in_distribution` function is used to calculate the p-value based on the bootstrapped means.
-
-    Example Usage:
-    >>> control_data = np.array([1, 2, 3, 4, 5])
-    >>> treatment_data = np.array([2, 3, 4, 5, 6])
-    >>> simulations = bootstrap_simulate(control_data, n_samples=1000, n_steps=10)
-    >>> bootstrap_p_value(control_data, treatment_data, simulations, alpha=0.1, mape=0.1)
+    Raises:
+        ValueError: If the control and treatment groups have different lengths.
     """
 
     # Calculate the mean of the data
