@@ -1,0 +1,12 @@
+name: experimentation_app
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - causalpy
+  - dash
+  - dash-bootstrap-components
+  - plotly
+  - pip
+
