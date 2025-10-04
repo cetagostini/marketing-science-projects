@@ -30,7 +30,7 @@ source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Run the app
+## Run the apps
 
 Inside this `Experimentation/site` directory execute:
 
@@ -39,6 +39,21 @@ streamlit run app.py
 ```
 
 The interface opens in your browser (default http://localhost:8501). Create experiments by typing a prompt, optionally adding attachments through the **＋** button, and pressing **Run experiment**. Each submission generates the same mock dashboard and is added to the sidebar so you can revisit it during the session.
+
+To run the Dash app with login enabled, configure a `.env` file in this directory:
+
+```
+APP_SECRET=choose-a-strong-secret
+APP_USERS=alice:password123,bob:letmein
+```
+
+Then start the server:
+
+```bash
+python dash_app.py
+```
+
+The Dash version mirrors the Streamlit flow using Dash components and Plotly charts (default http://127.0.0.1:8050).
 
 ## Notes
 

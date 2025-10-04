@@ -8,6 +8,44 @@ from typing import Any, Dict, List, Optional
 import altair as alt
 import pandas as pd
 import streamlit as st
+import os
+
+from flask import Flask, redirect, request, session, url_for
+from login import login_bp
+from storage import load_experiments
+
+
+server = Flask(__name__)
+server.secret_key = os.getenv("APP_SECRET", "dev-secret")
+server.register_blueprint(login_bp)
+server.config["BOOT_TOKEN"] = os.getenv("APP_BOOT_TOKEN") or os.urandom(16).hex()
+
+
+@server.before_request
+def ensure_login():
+    if session.get("user") is not None and session.get("boot_token") == server.config["BOOT_TOKEN"]:
+        return None
+
+    endpoint = request.endpoint or ""
+    path = request.path or ""
+
+    if endpoint in {"login.login", "login.login_static", "static"}:
+        return None
+
+    if path.startswith("/_dash") or path.startswith("/assets/") or path == "/favicon.ico":
+        return None
+
+    return redirect(url_for("login.login", next=request.url))
+
+
+@server.route("/")
+def root_redirect():
+    return redirect(url_for("dash_redirect"))
+
+
+@server.route("/dash")
+def dash_redirect():
+    return redirect("/dash/")
 
 
 def _initialize_session_state() -> None:
@@ -22,17 +60,16 @@ def _initialize_session_state() -> None:
     if "show_attachment_menu" not in st.session_state:
         st.session_state.show_attachment_menu = False
 
+    if "pending_form_reset" not in st.session_state:
+        st.session_state.pending_form_reset = False
+
 
 def _toggle_attachment_menu() -> None:
     st.session_state.show_attachment_menu = not st.session_state.show_attachment_menu
 
 
 def _reset_form() -> None:
-    st.session_state.new_message = ""
-    st.session_state.start_date = date.today()
-    st.session_state.end_date = date.today()
-    st.session_state.covariates = ""
-    st.session_state.dataset_upload = None
+    st.session_state.pending_form_reset = True
     st.session_state.show_attachment_menu = False
 
 
@@ -170,8 +207,8 @@ def _render_new_experiment_panel() -> None:
         }
 
         st.session_state.experiments.append(experiment_data)
-        st.session_state.experiment_selector = name
-        _reset_form()
+        st.session_state.pending_experiment_selector = name
+        st.session_state.pending_form_reset = True
         st.rerun()
 
 
@@ -303,6 +340,18 @@ def main() -> None:
     _inject_styles()
     _initialize_session_state()
 
+    pending_selector = st.session_state.pop("pending_experiment_selector", None)
+    if pending_selector:
+        st.session_state.experiment_selector = pending_selector
+
+    if st.session_state.get("pending_form_reset"):
+        st.session_state.pending_form_reset = False
+        st.session_state.new_message = ""
+        st.session_state.start_date = date.today()
+        st.session_state.end_date = date.today()
+        st.session_state.covariates = ""
+        st.session_state.dataset_upload = None
+
     options = _render_sidebar()
     _render_top_bar(options)
 
@@ -324,5 +373,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    server.run()
 
