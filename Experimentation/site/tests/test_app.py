@@ -1,8 +1,15 @@
 """Smoke tests for the mock experimentation Dash app."""
 
+import os
+import sys
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 from dash import dcc, html
 
-from site.app import (
+from Experimentation.site.app import (
     _make_experiment_name,
     app,
     create_dashboard_components,

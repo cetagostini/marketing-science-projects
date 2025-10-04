@@ -1,0 +1,3 @@
+"""Marketing science experimentation package."""
+
+
