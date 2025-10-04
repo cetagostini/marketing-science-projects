@@ -1,0 +1,34 @@
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Package build artifacts
+build/
+dist/
+*.egg-info/
+
+# macOS filesystem noise
+.DS_Store
+
+# Dash experimentation generated assets
+Experimentation/site/data/
+

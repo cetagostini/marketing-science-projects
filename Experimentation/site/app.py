@@ -27,7 +27,7 @@ DEFAULT_LIFT_SUMMARY = pd.DataFrame(
 
 def _make_experiment_name(counter: int, message: Optional[str]) -> str:
     if message:
-        preview = " ".join(message.split())[:24]
+        preview = " ".join(message.split())[:24].rstrip()
         if preview:
             return f"Experiment {counter}: {preview}"
     return f"Experiment {counter}"
