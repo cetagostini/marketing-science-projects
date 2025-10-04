@@ -2,7 +2,7 @@
 
 from dash import dcc, html
 
-from Experimentation.site.app import (
+from site.app import (
     _make_experiment_name,
     app,
     create_dashboard_components,
