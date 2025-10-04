@@ -225,15 +225,25 @@ app.layout = html.Div(
                                                 html.Div(
                                                     className="attachment-field",
                                                     children=[
-                                                        html.Span("Start date", className="field-label"),
-                                                        dcc.Input(id="start-date", type="date", className="field-input"),
+                                                html.Span("Start date", className="field-label"),
+                                                dcc.DatePickerSingle(
+                                                    id="start-date",
+                                                    className="field-input date-input",
+                                                    display_format="YYYY-MM-DD",
+                                                    placeholder="YYYY-MM-DD",
+                                                ),
                                                     ],
                                                 ),
                                                 html.Div(
                                                     className="attachment-field",
                                                     children=[
                                                         html.Span("End date", className="field-label"),
-                                                        dcc.Input(id="end-date", type="date", className="field-input"),
+                                                dcc.DatePickerSingle(
+                                                    id="end-date",
+                                                    className="field-input date-input",
+                                                    display_format="YYYY-MM-DD",
+                                                    placeholder="YYYY-MM-DD",
+                                                ),
                                                     ],
                                                 ),
                                                 html.Div(
@@ -333,15 +343,15 @@ def refresh_experiment_list(store_data: Dict[str, Any]):
     Output("experiments-store", "data"),
     Output("experiment-selector", "value"),
     Output("message-input", "value"),
-    Output("start-date", "value"),
-    Output("end-date", "value"),
+    Output("start-date", "date"),
+    Output("end-date", "date"),
     Output("dataset-input", "value"),
     Output("covariates-input", "value"),
     Input("run-experiment-button", "n_clicks"),
     Input("new-experiment-button", "n_clicks"),
     State("message-input", "value"),
-    State("start-date", "value"),
-    State("end-date", "value"),
+    State("start-date", "date"),
+    State("end-date", "date"),
     State("dataset-input", "value"),
     State("covariates-input", "value"),
     State("experiments-store", "data"),
@@ -384,7 +394,7 @@ def handle_experiment_actions(
             "end_date": end_date or "2025-04-15",
             "dataset": dataset or "Germany Retail",
             "covariates": covariates or "Seasonality, Spend",
-            "created_at": datetime.datetime.utcnow().isoformat(),
+            "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
         }
         experiments.append(experiment)
         store_data = {"experiments": experiments, "counter": counter, "selected_id": experiment_id}
@@ -423,4 +433,4 @@ def render_dashboard(selected_id: Optional[str], store_data: Dict[str, Any]):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run(debug=True)
