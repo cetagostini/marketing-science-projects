@@ -13,12 +13,19 @@ import os
 from flask import Flask, redirect, request, session, url_for
 from login import login_bp
 from storage import load_experiments
+from openai import OpenAI
 
 
 server = Flask(__name__)
 server.secret_key = os.getenv("APP_SECRET", "dev-secret")
 server.register_blueprint(login_bp)
 server.config["BOOT_TOKEN"] = os.getenv("APP_BOOT_TOKEN") or os.urandom(16).hex()
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if openai_api_key:
+    server.config["OPENAI_CLIENT"] = OpenAI(api_key=openai_api_key)
+else:
+    server.config["OPENAI_CLIENT"] = None
 
 
 @server.before_request

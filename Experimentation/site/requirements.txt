@@ -1,8 +1,10 @@
-streamlit>=1.30
-pandas>=2.0
-altair>=5.0
-numpy>=1.24
 dash>=2.17
 plotly>=5.20
+pandas>=2.0
+numpy>=1.24
+causalpy>=0.5
+arviz>=0.16
+pydantic>=2.5
 python-dotenv>=1.0
-dash[testing]>=2.17
+dask
+openai>=1.40

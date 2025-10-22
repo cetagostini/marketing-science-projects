@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Any
 from datetime import date, datetime, time
+
+logger = logging.getLogger(__name__)
 
 try:  # Optional dependency; available when pandas is installed.
     import pandas as pd  # type: ignore
@@ -60,14 +63,18 @@ def _load_all() -> Dict[str, List[Dict[str, Any]]]:
 
 def load_experiments(user_id: str) -> List[Dict[str, Any]]:
     """Return stored experiments for the given user id."""
-
-    return _load_all().get(user_id, [])
+    
+    experiments = _load_all().get(user_id, [])
+    logger.info(f"Loaded {len(experiments)} experiments for user '{user_id}' from storage")
+    return experiments
 
 
 def save_experiments(user_id: str, experiments: List[Dict[str, Any]]) -> None:
     """Persist experiments for the given user id."""
 
     path = _store_path()
+    logger.info(f"Saving {len(experiments)} experiments for user '{user_id}' to {path}")
+    
     data = _load_all()
     data[user_id] = experiments
 
@@ -75,8 +82,9 @@ def save_experiments(user_id: str, experiments: List[Dict[str, Any]]) -> None:
 
     try:
         path.write_text(json.dumps(safe_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    except OSError:
-        pass
+        logger.info(f"Successfully saved experiments to {path}")
+    except OSError as e:
+        logger.error(f"Failed to save experiments to {path}: {e}")
 
 
 def _ensure_json_safe(value: Any) -> Any:
