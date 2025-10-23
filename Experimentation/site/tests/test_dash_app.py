@@ -247,3 +247,174 @@ def test_compute_popover_position() -> None:
     assert dash_app.compute_popover_position(600, 200) == "attachment-bottom"
     assert dash_app.compute_popover_position(None, None) == "attachment-top"
 
+
+def test_process_experiment_error_recovery(monkeypatch) -> None:
+    """Test that process_experiment recovers from errors properly."""
+    from unittest.mock import Mock, patch
+    from datetime import datetime
+    
+    # Mock session (only needs user, not experiments - those are in file storage)
+    mock_session = {"user": "test_user"}
+    monkeypatch.setattr("dash_app.session", mock_session)
+    
+    # Mock save_experiments
+    save_called = []
+    def mock_save(user_key, experiments):
+        save_called.append((user_key, experiments))
+    monkeypatch.setattr("dash_app.save_experiments", mock_save)
+    
+    # Mock parse_upload to fail
+    monkeypatch.setattr("dash_app.parse_upload", lambda *args: None)
+    
+    processing_data = {
+        "experiment_name": "Test Experiment",
+        "message": "Test",
+        "upload_contents": "data:text/csv;base64,abc",
+        "upload_filename": "test.csv",
+    }
+    
+    experiments = [{"name": "Test Experiment", "status": "loading"}]
+    processing_metadata = {"Test Experiment": {"start_time": datetime.now().isoformat()}}
+    
+    result = dash_app.process_experiment(processing_data, experiments, processing_metadata)
+    
+    # Verify cleanup happened
+    updated_experiments = result[0]
+    assert len(updated_experiments) == 0  # Loading experiment removed
+    
+    # Verify save was called
+    assert len(save_called) > 0
+    
+    # Verify error message shown
+    error_msg = result[4]
+    assert error_msg is not None
+
+
+def test_cleanup_stuck_experiments_integration(monkeypatch) -> None:
+    """Test the cleanup callback in isolation."""
+    from datetime import datetime
+    from unittest.mock import Mock
+    
+    # Mock session and context (only needs user, not experiments - those are in file storage)
+    mock_session = {"user": "test_user"}
+    monkeypatch.setattr("dash_app.session", mock_session)
+    monkeypatch.setattr("dash_app.has_request_context", lambda: True)
+    
+    save_called = []
+    def mock_save(user_key, experiments):
+        save_called.append((user_key, experiments))
+    monkeypatch.setattr("dash_app.save_experiments", mock_save)
+    
+    # Create an old experiment (1 year ago to ensure it's past timeout)
+    old_time = datetime.now().replace(year=datetime.now().year - 1)
+    
+    experiments = [
+        {"name": "Stuck Experiment", "status": "loading"},
+        {"name": "Normal Experiment", "status": "complete"},
+    ]
+    
+    processing_metadata = {
+        "Stuck Experiment": {
+            "start_time": old_time.isoformat(),
+            "status": "processing",
+        }
+    }
+    
+    result = dash_app.cleanup_stuck_experiments(1, experiments, processing_metadata)
+    
+    updated_experiments = result[0]
+    updated_metadata = result[1]
+    
+    # Stuck experiment should be removed
+    assert len(updated_experiments) == 1
+    assert updated_experiments[0]["name"] == "Normal Experiment"
+    
+    # Metadata should show timeout
+    assert updated_metadata["Stuck Experiment"]["status"] == "timeout"
+    
+    # Save should be called
+    assert len(save_called) > 0
+
+
+def test_add_loading_experiment_validation(monkeypatch) -> None:
+    """Test that add_loading_experiment validates inputs."""
+    from unittest.mock import Mock
+    
+    # Mock callback context
+    mock_ctx = Mock()
+    mock_ctx.triggered_id = "composer-send"
+    monkeypatch.setattr("dash_app.callback_context", mock_ctx)
+    
+    # Mock the utility functions
+    monkeypatch.setattr("dash_app.build_composer_chips", lambda x: [])
+    monkeypatch.setattr("dash_app.build_upload_message", lambda x: None)
+    
+    # Test empty message
+    result = dash_app.add_loading_experiment(
+        send_clicks=1,
+        experiments=[],
+        message="   ",  # Empty after strip
+        upload_contents="data:text/csv;base64,abc",
+        upload_filename="test.csv",
+        current_class="attachment-popover",
+        processing_metadata={},
+    )
+    
+    error_notification = result[10]
+    assert error_notification is not None
+    # Check that error contains relevant text
+    error_text = str(error_notification)
+    assert "cannot be empty" in error_text or "empty" in error_text.lower()
+    
+    # Test missing dataset
+    result = dash_app.add_loading_experiment(
+        send_clicks=1,
+        experiments=[],
+        message="Test message",
+        upload_contents=None,
+        upload_filename=None,
+        current_class="attachment-popover",
+        processing_metadata={},
+    )
+    
+    error_notification = result[10]
+    assert error_notification is not None
+    error_text = str(error_notification)
+    assert "dataset" in error_text.lower() or "attach" in error_text.lower()
+
+
+def test_metadata_tracking(monkeypatch) -> None:
+    """Test that processing metadata is properly tracked."""
+    from unittest.mock import Mock
+    from datetime import datetime
+    
+    mock_ctx = Mock()
+    mock_ctx.triggered_id = "composer-send"
+    monkeypatch.setattr("dash_app.callback_context", mock_ctx)
+    monkeypatch.setattr("dash_app.build_composer_chips", lambda x: [])
+    monkeypatch.setattr("dash_app.build_upload_message", lambda x: None)
+    
+    result = dash_app.add_loading_experiment(
+        send_clicks=1,
+        experiments=[],
+        message="Test",
+        upload_contents="data:text/csv;base64,abc",
+        upload_filename="test.csv",
+        current_class="attachment-popover",
+        processing_metadata={},
+    )
+    
+    updated_metadata = result[12]
+    
+    # Verify metadata was created
+    assert "Experiment 1" in updated_metadata
+    assert updated_metadata["Experiment 1"]["status"] == "processing"
+    assert "start_time" in updated_metadata["Experiment 1"]
+    
+    # Verify start time is valid ISO format
+    start_time_str = updated_metadata["Experiment 1"]["start_time"]
+    try:
+        datetime.fromisoformat(start_time_str)
+    except ValueError:
+        pytest.fail(f"Invalid ISO format: {start_time_str}")
+

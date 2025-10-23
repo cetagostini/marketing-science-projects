@@ -7,6 +7,7 @@ import base64
 import io
 import json
 import logging
+import os
 import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -355,6 +356,23 @@ app = Dash(__name__, server=server, url_base_pathname="/dash/")
 app.title = "Experimentation Console"
 app.config.suppress_callback_exceptions = True
 
+# Configure timeout for experiment processing (default 3 minutes)
+EXPERIMENT_TIMEOUT_SECONDS = int(os.getenv("EXPERIMENT_TIMEOUT_SECONDS", "180"))
+logger.info(f"Experiment timeout configured to {EXPERIMENT_TIMEOUT_SECONDS} seconds")
+
+# Global error handler for callbacks
+def handle_callback_error(error):
+    """Global error handler for unhandled callback exceptions."""
+    logger.error(f"Unhandled callback error: {error}")
+    logger.error(traceback.format_exc())
+    return html.Div(
+        [
+            html.Span("⚠", className="error-notification-icon"),
+            html.Div(f"An unexpected error occurred: {str(error)}", className="error-notification-message"),
+        ],
+        className="error-notification",
+    )
+
 app.index_string = """<!DOCTYPE html>
 <html>
     <head>
@@ -427,6 +445,11 @@ app.index_string = """<!DOCTYPE html>
                 flex: 1;
                 overflow-y: auto;
             }
+            .experiment-card-container {
+                position: relative;
+                display: flex;
+                width: 100%;
+            }
             .experiment-card {
                 display: flex;
                 flex-direction: column;
@@ -442,13 +465,14 @@ app.index_string = """<!DOCTYPE html>
                 font-family: inherit;
                 outline: none;
             }
+            .experiment-card-container:has(.experiment-card.active) .experiment-card,
             .experiment-card.active {
                 border-color: #2563eb;
                 background: #eff6ff;
                 box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
                 transform: translateX(4px);
             }
-            .experiment-card:hover {
+            .experiment-card-container:hover .experiment-card {
                 border-color: #c0c9d9;
                 transform: translateX(4px);
             }
@@ -833,6 +857,94 @@ app.index_string = """<!DOCTYPE html>
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
             }
+            .experiment-card-menu-button {
+                position: absolute;
+                bottom: 0.5rem;
+                right: 0.5rem;
+                width: 24px;
+                height: 24px;
+                border: none;
+                background: transparent;
+                color: #9ca3af;
+                font-size: 1rem;
+                cursor: pointer;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s ease, color 0.2s ease;
+                z-index: 100;
+                padding: 0;
+                line-height: 1;
+            }
+            .experiment-card-menu-button:hover {
+                background: rgba(239, 68, 68, 0.12);
+                color: #ef4444;
+            }
+            .delete-confirmation-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                pointer-events: auto;
+            }
+            .delete-confirmation-modal {
+                background: white;
+                border-radius: 16px;
+                padding: 2rem;
+                max-width: 420px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                z-index: 1001;
+                pointer-events: auto;
+            }
+            .delete-confirmation-title {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 0.75rem;
+                color: #1f2937;
+            }
+            .delete-confirmation-message {
+                color: #64748b;
+                margin-bottom: 1.5rem;
+                line-height: 1.6;
+            }
+            .delete-confirmation-buttons {
+                display: flex;
+                gap: 0.75rem;
+                justify-content: flex-end;
+            }
+            .delete-confirmation-button {
+                padding: 0.5rem 1rem;
+                border-radius: 8px;
+                border: 1px solid #d1d5db;
+                background: white;
+                font-size: 0.95rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                position: relative;
+                z-index: 1002;
+                pointer-events: auto;
+            }
+            .delete-confirmation-button.cancel {
+                color: #4b5563;
+            }
+            .delete-confirmation-button.cancel:hover {
+                background: #f3f4f6;
+            }
+            .delete-confirmation-button.confirm {
+                background: #ef4444;
+                color: white;
+                border-color: #ef4444;
+            }
+            .delete-confirmation-button.confirm:hover {
+                background: #dc2626;
+            }
         </style>
     </head>
     <body>
@@ -855,12 +967,10 @@ def _initial_experiments_state() -> List[Dict[str, Any]]:
     user_key = session.get("user", "default")
     logger.info(f"Loading initial experiments state for user: {user_key}")
     
-    # Always load from storage on page initialization (storage is the source of truth)
+    # Always load from storage (storage is the source of truth)
+    # DO NOT store in session - experiments data is too large for cookie storage
     experiments = load_experiments(user_key)
     logger.info(f"Loaded {len(experiments)} experiments from storage for user: {user_key}")
-    
-    # Update session as write-through cache
-    session.setdefault("experiments", {})[user_key] = experiments
     
     logger.info(f"Returning {len(experiments)} experiments for initial state")
     return experiments
@@ -876,6 +986,10 @@ def serve_layout() -> html.Div:
             dcc.Store(id="uploaded-filename", data=None),
             dcc.Store(id="error-message", data=None),
             dcc.Store(id="processing-trigger", data=None),
+            dcc.Store(id="processing-metadata", data={}),
+            dcc.Store(id="delete-confirmation-experiment", data=None),
+            dcc.Store(id="delete-confirmation-visible", data=False),
+            dcc.Interval(id="cleanup-interval", interval=30000, n_intervals=0),  # Check every 30 seconds
             html.Div(
                 [
                     html.Div(
@@ -976,6 +1090,7 @@ def serve_layout() -> html.Div:
                 ],
                 className="app-shell",
             ),
+            html.Div(id="delete-confirmation-modal", style={"display": "none"}),
         ],
     )
 
@@ -1002,14 +1117,17 @@ def update_sidebar(
     selected_value = selected or "New Experiment"
 
     cards = [
-        html.Button(
-            [
-                html.Div("New Experiment", className="experiment-card-title"),
-                html.Div("Start a fresh request", className="experiment-card-description"),
-            ],
-            className=f"experiment-card{' active' if selected_value == 'New Experiment' else ''}",
-            id={"type": "experiment-card", "value": "New Experiment"},
-            n_clicks=0,
+        html.Div(
+            html.Button(
+                [
+                    html.Div("New Experiment", className="experiment-card-title"),
+                    html.Div("Start a fresh request", className="experiment-card-description"),
+                ],
+                className=f"experiment-card{' active' if selected_value == 'New Experiment' else ''}",
+                id={"type": "experiment-card", "value": "New Experiment"},
+                n_clicks=0,
+            ),
+            className="experiment-card-container",
         )
     ]
 
@@ -1020,42 +1138,56 @@ def update_sidebar(
         if is_loading:
             # Render loading experiment with spinner
             cards.append(
-                html.Button(
-                    [
-                        html.Div(
-                            [
-                                html.Span(className="loading-spinner"),
-                                html.Span(exp["name"]),
-                            ],
-                            className="experiment-card-title",
-                            style={"display": "flex", "alignItems": "center"}
-                        ),
-                        html.Div("Processing...", className="experiment-card-description"),
-                    ],
-                    className=f"experiment-card loading{' active' if selected_value == exp['name'] else ''}",
-                    id={"type": "experiment-card", "value": exp["name"]},
-                    n_clicks=0,
+                html.Div(
+                    html.Button(
+                        [
+                            html.Div(
+                                [
+                                    html.Span(className="loading-spinner"),
+                                    html.Span(exp["name"]),
+                                ],
+                                className="experiment-card-title",
+                                style={"display": "flex", "alignItems": "center"}
+                            ),
+                            html.Div("Processing...", className="experiment-card-description"),
+                        ],
+                        className=f"experiment-card loading{' active' if selected_value == exp['name'] else ''}",
+                        id={"type": "experiment-card", "value": exp["name"]},
+                        n_clicks=0,
+                    ),
+                    className="experiment-card-container",
                 )
             )
         else:
-            # Render completed experiment normally
+            # Render completed experiment normally - menu button is sibling, not nested
             cards.append(
-                html.Button(
+                html.Div(
                     [
-                        html.Div(exp["name"], className="experiment-card-title"),
-                        html.Div(subtitle[:60] + ("…" if len(subtitle) > 60 else ""), className="experiment-card-description"),
-                        html.Div(
+                        html.Button(
                             [
-                                html.Div(_format_date(exp.get("start_date")), className="meta-value"),
-                                html.Span(className="dot"),
-                                html.Div(_format_date(exp.get("end_date")), className="meta-value"),
+                                html.Div(exp["name"], className="experiment-card-title"),
+                                html.Div(subtitle[:60] + ("…" if len(subtitle) > 60 else ""), className="experiment-card-description"),
+                                html.Div(
+                                    [
+                                        html.Div(_format_date(exp.get("start_date")), className="meta-value"),
+                                        html.Span(className="dot"),
+                                        html.Div(_format_date(exp.get("end_date")), className="meta-value"),
+                                    ],
+                                    className="experiment-card-meta",
+                                ),
                             ],
-                            className="experiment-card-meta",
+                            className=f"experiment-card{' active' if selected_value == exp['name'] else ''}",
+                            id={"type": "experiment-card", "value": exp["name"]},
+                            n_clicks=0,
+                        ),
+                        html.Button(
+                            "⋮",
+                            id={"type": "experiment-menu-button", "experiment": exp["name"]},
+                            className="experiment-card-menu-button",
+                            n_clicks=0,
                         ),
                     ],
-                    className=f"experiment-card{' active' if selected_value == exp['name'] else ''}",
-                    id={"type": "experiment-card", "value": exp["name"]},
-                    n_clicks=0,
+                    className="experiment-card-container",
                 )
             )
 
@@ -1174,12 +1306,14 @@ def update_main_view(selection: Optional[str], experiments: Optional[List[Dict[s
     Output("upload-data", "filename", allow_duplicate=True),
     Output("error-notification", "children", allow_duplicate=True),
     Output("error-notification", "style", allow_duplicate=True),
+    Output("processing-metadata", "data", allow_duplicate=True),
     Input("composer-send", "n_clicks"),
     State("experiments-store", "data"),
     State("form-message", "value"),
     State("upload-data", "contents"),
     State("upload-data", "filename"),
     State("attachment-area", "className"),
+    State("processing-metadata", "data"),
     prevent_initial_call=True,
 )
 def add_loading_experiment(
@@ -1189,6 +1323,7 @@ def add_loading_experiment(
     upload_contents: Optional[str],
     upload_filename: Optional[str],
     current_class: str,
+    processing_metadata: Optional[Dict[str, Any]],
 ):
     logger.info("=== add_loading_experiment called ===")
     triggered = callback_context.triggered_id
@@ -1247,6 +1382,13 @@ def add_loading_experiment(
         
         chips = build_composer_chips(upload_filename)
         upload_feedback = build_upload_message(upload_filename)
+        
+        # Update processing metadata
+        processing_metadata = processing_metadata or {}
+        processing_metadata[name] = {
+            "start_time": datetime.now().isoformat(),
+            "status": "processing",
+        }
 
         logger.info("=== add_loading_experiment returning ===")
         return (
@@ -1262,6 +1404,7 @@ def add_loading_experiment(
             None,  # Keep upload filename for processing callback
             None,  # Clear error notification
             {"display": "none"},
+            processing_metadata,  # Update processing metadata
         )
     except ExperimentFailure as exc:
         logger.error(f"ExperimentFailure: {exc}")
@@ -1286,6 +1429,7 @@ def add_loading_experiment(
             no_update,
             error_msg,
             {"display": "block"},
+            no_update,  # processing-metadata
         )
 
 
@@ -1296,15 +1440,23 @@ def add_loading_experiment(
     Output("upload-data", "filename"),
     Output("error-notification", "children", allow_duplicate=True),
     Output("error-notification", "style", allow_duplicate=True),
+    Output("processing-metadata", "data", allow_duplicate=True),
     Input("processing-trigger", "data"),
     State("experiments-store", "data"),
+    State("processing-metadata", "data"),
     prevent_initial_call=True,
 )
 def process_experiment(
     processing_data: Optional[Dict[str, Any]],
     experiments: Optional[List[Dict[str, Any]]],
+    processing_metadata: Optional[Dict[str, Any]],
 ):
-    """Process the experiment and replace the loading entry with results."""
+    """Process the experiment and replace the loading entry with results.
+    
+    This callback has guaranteed cleanup: loading experiments are ALWAYS removed,
+    either by being replaced with results (success) or deleted (failure).
+    All return paths update processing_metadata to track completion.
+    """
     logger.info("=== process_experiment called ===")
     logger.info(f"Processing data received: {processing_data is not None}")
     logger.info(f"Experiments count: {len(experiments) if experiments else 0}")
@@ -1317,6 +1469,7 @@ def process_experiment(
     logger.info(f"User key: {user_key}")
     
     experiments = experiments or []
+    processing_metadata = processing_metadata or {}
     experiment_name = processing_data.get("experiment_name")
     message = processing_data.get("message")
     upload_contents = processing_data.get("upload_contents")
@@ -1327,8 +1480,11 @@ def process_experiment(
     logger.info(f"Upload filename: {upload_filename}")
     logger.info(f"Has upload contents: {upload_contents is not None}")
     
-    # Use the experiments from the Store
-    experiment_store = session.setdefault("experiments", {})
+    # Variables for cleanup tracking in finally block
+    updated_experiments = experiments
+    final_selection = "New Experiment"
+    error_msg = None
+    error_style = {"display": "none"}
 
     try:
         # Parse the uploaded dataset
@@ -1377,22 +1533,12 @@ def process_experiment(
             for exp in experiments
         ]
         
-        experiment_store[user_key] = updated_experiments
-        save_experiments(user_key, updated_experiments)
-        session.modified = True
+        final_selection = experiment_name  # Select the completed experiment
+        error_msg = None
+        error_style = {"display": "none"}
         
-        logger.info(f"Experiment completed and saved! Total experiments: {len(updated_experiments)}")
+        logger.info(f"Experiment completed successfully! Total experiments: {len(updated_experiments)}")
         logger.info(f"Switching to experiment: {experiment_name}")
-        logger.info("=== process_experiment returning success ===")
-
-        return (
-            updated_experiments,
-            experiment_name,  # Select the completed experiment
-            None,  # Clear upload contents
-            None,  # Clear upload filename
-            None,  # Clear error notification
-            {"display": "none"},
-        )
     except ExperimentFailure as exc:
         logger.error(f"=== ExperimentFailure in process_experiment ===")
         logger.error(f"Error: {exc}")
@@ -1405,10 +1551,7 @@ def process_experiment(
         ]
         logger.info(f"Removed loading experiment, remaining: {len(updated_experiments)}")
         
-        experiment_store[user_key] = updated_experiments
-        save_experiments(user_key, updated_experiments)
-        session.modified = True
-        
+        final_selection = "New Experiment"
         error_msg = html.Div(
             [
                 html.Span("⚠", className="error-notification-icon"),
@@ -1416,15 +1559,8 @@ def process_experiment(
             ],
             className="error-notification",
         )
-        logger.info("=== process_experiment returning error (ExperimentFailure) ===")
-        return (
-            updated_experiments,
-            "New Experiment",  # Go back to new experiment view
-            None,  # Clear upload contents
-            None,  # Clear upload filename
-            error_msg,
-            {"display": "block"},
-        )
+        error_style = {"display": "block"}
+        
     except Exception as exc:
         logger.error(f"=== Unexpected exception in process_experiment ===")
         logger.error(f"Exception type: {type(exc).__name__}")
@@ -1438,10 +1574,7 @@ def process_experiment(
         ]
         logger.info(f"Removed loading experiment, remaining: {len(updated_experiments)}")
         
-        experiment_store[user_key] = updated_experiments
-        save_experiments(user_key, updated_experiments)
-        session.modified = True
-        
+        final_selection = "New Experiment"
         error_msg = html.Div(
             [
                 html.Span("⚠", className="error-notification-icon"),
@@ -1449,15 +1582,110 @@ def process_experiment(
             ],
             className="error-notification",
         )
-        logger.info("=== process_experiment returning error (Exception) ===")
+        error_style = {"display": "block"}
+    
+    finally:
+        # GUARANTEED CLEANUP: Always save state and clear processing metadata
+        # This ensures the UI never gets stuck in loading state
+        
+        # Save to file storage (DO NOT use session - too large for cookies)
+        save_experiments(user_key, updated_experiments)
+        
+        # Clear processing metadata for this experiment
+        if experiment_name in processing_metadata:
+            processing_metadata[experiment_name] = {
+                "start_time": processing_metadata[experiment_name].get("start_time"),
+                "status": "complete",
+                "end_time": datetime.now().isoformat(),
+            }
+        
+        logger.info(f"=== process_experiment cleanup complete ===")
+        logger.info(f"Final experiments count: {len(updated_experiments)}")
+        logger.info(f"Final selection: {final_selection}")
+        logger.info(f"Has error: {error_msg is not None}")
+        
         return (
             updated_experiments,
-            "New Experiment",  # Go back to new experiment view
+            final_selection,
             None,  # Clear upload contents
             None,  # Clear upload filename
             error_msg,
-            {"display": "block"},
+            error_style,
+            processing_metadata,
         )
+
+
+@app.callback(
+    Output("experiments-store", "data", allow_duplicate=True),
+    Output("processing-metadata", "data", allow_duplicate=True),
+    Input("cleanup-interval", "n_intervals"),
+    State("experiments-store", "data"),
+    State("processing-metadata", "data"),
+    prevent_initial_call=True,
+)
+def cleanup_stuck_experiments(
+    n_intervals: int,
+    experiments: Optional[List[Dict[str, Any]]],
+    processing_metadata: Optional[Dict[str, Any]],
+):
+    """Monitor and cleanup experiments stuck in loading state.
+    
+    This is a safety net that runs every 30 seconds to check for experiments
+    that have been processing for longer than EXPERIMENT_TIMEOUT_SECONDS.
+    If found, they are removed to prevent permanent loading state.
+    """
+    if not experiments or not processing_metadata:
+        raise PreventUpdate
+    
+    experiments = experiments or []
+    processing_metadata = processing_metadata or {}
+    current_time = datetime.now()
+    
+    # Find experiments stuck in loading state
+    stuck_experiments = []
+    for exp in experiments:
+        if exp.get("status") == "loading":
+            exp_name = exp.get("name")
+            metadata = processing_metadata.get(exp_name, {})
+            start_time_str = metadata.get("start_time")
+            
+            if start_time_str:
+                try:
+                    start_time = datetime.fromisoformat(start_time_str)
+                    elapsed_seconds = (current_time - start_time).total_seconds()
+                    
+                    if elapsed_seconds > EXPERIMENT_TIMEOUT_SECONDS:
+                        stuck_experiments.append(exp_name)
+                        logger.warning(f"Experiment '{exp_name}' stuck in loading for {elapsed_seconds:.0f}s (timeout: {EXPERIMENT_TIMEOUT_SECONDS}s)")
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error parsing start time for {exp_name}: {e}")
+    
+    if not stuck_experiments:
+        raise PreventUpdate
+    
+    # Remove stuck experiments
+    logger.info(f"Cleaning up {len(stuck_experiments)} stuck experiments: {stuck_experiments}")
+    updated_experiments = [
+        exp for exp in experiments
+        if exp.get("name") not in stuck_experiments
+    ]
+    
+    # Clear metadata for stuck experiments
+    for exp_name in stuck_experiments:
+        if exp_name in processing_metadata:
+            processing_metadata[exp_name] = {
+                "start_time": processing_metadata[exp_name].get("start_time"),
+                "status": "timeout",
+                "end_time": current_time.isoformat(),
+            }
+    
+    # Save to storage (DO NOT use session - too large for cookies)
+    if has_request_context():
+        user_key = session.get("user", "default")
+        save_experiments(user_key, updated_experiments)
+        logger.info(f"Saved cleanup results for user '{user_key}'")
+    
+    return updated_experiments, processing_metadata
 
 
 @app.callback(
@@ -1508,6 +1736,181 @@ def toggle_attachment_area(
         None if clear_error else html.Div(),
         {"display": "none"} if clear_error else {},
     )
+
+
+@app.callback(
+    Output("error-message", "data", allow_duplicate=True),
+    Input("delete-confirmation-confirm", "n_clicks"),
+    prevent_initial_call=True,
+)
+def debug_delete_button_click(n_clicks):
+    """Debug callback to verify Delete button clicks are being registered."""
+    logger.info(f"🔍 DEBUG: Delete button clicked! n_clicks={n_clicks}")
+    logger.info(f"🔍 DEBUG: Callback triggered successfully!")
+    return None  # Don't actually use this output
+
+
+@app.callback(
+    Output("delete-confirmation-experiment", "data"),
+    Output("delete-confirmation-visible", "data"),
+    Input({"type": "experiment-menu-button", "experiment": ALL}, "n_clicks"),
+    State({"type": "experiment-menu-button", "experiment": ALL}, "id"),
+    prevent_initial_call=True,
+)
+def show_delete_confirmation(clicks, button_ids):
+    """Show delete confirmation when menu button is clicked."""
+    triggered = callback_context.triggered_id
+    
+    logger.debug(f"show_delete_confirmation triggered: {triggered}")
+    logger.debug(f"Clicks received: {clicks}")
+    logger.debug(f"Button IDs: {button_ids}")
+    
+    # Validate trigger exists and is a dict
+    if not triggered or not isinstance(triggered, dict):
+        logger.debug("No valid trigger or not a dict, preventing update")
+        raise PreventUpdate
+    
+    # Validate it's the right button type
+    if triggered.get("type") != "experiment-menu-button":
+        logger.debug(f"Wrong button type: {triggered.get('type')}, preventing update")
+        raise PreventUpdate
+    
+    # Check if any actual clicks occurred (avoid initial state where all are 0)
+    if not any(c for c in clicks if c and c > 0):
+        logger.debug("No actual clicks detected (all 0 or None)")
+        raise PreventUpdate
+    
+    experiment_name = triggered.get("experiment")
+    if not experiment_name:
+        logger.debug("No experiment name in trigger")
+        raise PreventUpdate
+    
+    logger.info(f"Showing delete confirmation for experiment: {experiment_name}")
+    return experiment_name, True
+
+
+@app.callback(
+    Output("delete-confirmation-modal", "children"),
+    Output("delete-confirmation-modal", "style"),
+    Input("delete-confirmation-visible", "data"),
+    Input("delete-confirmation-experiment", "data"),
+)
+def render_delete_confirmation(visible, experiment_name):
+    """Render the delete confirmation modal."""
+    logger.debug(f"render_delete_confirmation called: visible={visible}, experiment={experiment_name}")
+    
+    if not visible or not experiment_name:
+        logger.debug("Modal hidden (not visible or no experiment name)")
+        return None, {"display": "none"}
+    
+    logger.info(f"Rendering delete confirmation modal for: {experiment_name}")
+    
+    modal = html.Div(
+        html.Div(
+            [
+                html.Div("Delete Experiment?", className="delete-confirmation-title"),
+                html.Div(
+                    f'Are you sure you want to delete "{experiment_name}"? This action cannot be undone.',
+                    className="delete-confirmation-message",
+                ),
+                html.Div(
+                    [
+                        html.Button(
+                            "Cancel",
+                            id="delete-confirmation-cancel",
+                            className="delete-confirmation-button cancel",
+                            n_clicks=0,
+                            **{"type": "button"},
+                        ),
+                        html.Button(
+                            "Delete",
+                            id="delete-confirmation-confirm",
+                            className="delete-confirmation-button confirm",
+                            n_clicks=0,
+                            **{"type": "button"},
+                        ),
+                    ],
+                    className="delete-confirmation-buttons",
+                ),
+            ],
+            className="delete-confirmation-modal",
+        ),
+        className="delete-confirmation-overlay",
+    )
+    
+    return modal, {"display": "block"}
+
+
+@app.callback(
+    Output("experiments-store", "data", allow_duplicate=True),
+    Output("selected-experiment", "data", allow_duplicate=True),
+    Output("delete-confirmation-experiment", "data", allow_duplicate=True),
+    Output("delete-confirmation-visible", "data", allow_duplicate=True),
+    Input("delete-confirmation-confirm", "n_clicks"),
+    Input("delete-confirmation-cancel", "n_clicks"),
+    State("delete-confirmation-experiment", "data"),
+    State("experiments-store", "data"),
+    State("selected-experiment", "data"),
+    prevent_initial_call=True,
+)
+def handle_delete_confirmation(confirm_clicks, cancel_clicks, experiment_name, experiments, selected):
+    """Handle delete confirmation or cancellation."""
+    from dash import no_update
+    
+    # Prevent callback from firing when modal first renders (both buttons at n_clicks=0)
+    if not confirm_clicks and not cancel_clicks:
+        logger.debug("Modal rendered but no button clicked yet, preventing update")
+        raise PreventUpdate
+    
+    triggered = callback_context.triggered_id
+    
+    # EXTENSIVE DEBUG LOGGING
+    logger.info(f"=== handle_delete_confirmation CALLED ===")
+    logger.info(f"Triggered ID: {triggered}")
+    logger.info(f"Triggered ID type: {type(triggered)}")
+    logger.info(f"Triggered ID == 'delete-confirmation-confirm': {triggered == 'delete-confirmation-confirm'}")
+    logger.info(f"Triggered ID == 'delete-confirmation-cancel': {triggered == 'delete-confirmation-cancel'}")
+    logger.info(f"Confirm clicks: {confirm_clicks}")
+    logger.info(f"Cancel clicks: {cancel_clicks}")
+    logger.info(f"Experiment to delete: {experiment_name}")
+    logger.info(f"Current selection: {selected}")
+    logger.info(f"Experiments count: {len(experiments) if experiments else 0}")
+    
+    if triggered == "delete-confirmation-cancel":
+        logger.info("Delete cancelled by user")
+        # Just close the modal
+        return no_update, no_update, None, False
+    
+    if triggered == "delete-confirmation-confirm":
+        if not experiment_name:
+            logger.error("Confirm clicked but no experiment name provided!")
+            raise PreventUpdate
+        
+        logger.info(f"Deleting experiment: {experiment_name}")
+        
+        # Delete the experiment
+        experiments = experiments or []
+        updated_experiments = [exp for exp in experiments if exp.get("name") != experiment_name]
+        
+        logger.info(f"Experiments before delete: {len(experiments)}, after delete: {len(updated_experiments)}")
+        
+        # Save to storage
+        if has_request_context():
+            user_key = session.get("user", "default")
+            save_experiments(user_key, updated_experiments)
+            logger.info(f"Deleted experiment '{experiment_name}' for user '{user_key}' - saved to storage")
+        else:
+            logger.warning("No request context - deletion not saved to storage")
+        
+        # If deleted experiment was selected, switch to "New Experiment"
+        new_selection = "New Experiment" if selected == experiment_name else selected
+        logger.info(f"New selection: {new_selection}")
+        
+        # Close modal and clear state
+        return updated_experiments, new_selection, None, False
+    
+    logger.debug(f"No valid trigger ({triggered}), preventing update")
+    raise PreventUpdate
 
 
 if __name__ == "__main__":
