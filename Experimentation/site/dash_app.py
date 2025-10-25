@@ -26,10 +26,13 @@ from dash import (
 from dash.exceptions import PreventUpdate
 import plotly.graph_objs as go
 from flask import session, has_request_context, current_app
+import dash_mantine_components as dmc
+from dash_iconify import DashIconify
 
 from storage import load_experiments, save_experiments
 from services.llm_extraction import LLMExtractor, ExtractionError, normalise_control_codes
-from services.experiment_runner import run_experiment, build_series_chart, build_distribution_plot
+from services.experiment_runner import run_experiment, build_series_chart, build_distribution_plot, build_sensitivity_plot
+from services.model_selector import ModelSelector, ModelSelectionError
 from server import server
 
 # Configure logging
@@ -112,27 +115,96 @@ def run_experiment_pipeline(
     logger.info("=== run_experiment_pipeline called ===")
     logger.info(f"Dataset shape: {dataset.shape}")
     
-    extracted = llm.extract_experiment_details(message)
-    logger.info(f"LLM extracted experiment details")
+    try:
+        logger.info("Extracting experiment details from message...")
+        extracted = llm.extract_experiment_details(message)
+        logger.info(f"LLM extracted experiment details successfully")
+    except Exception as e:
+        logger.error(f"Failed to extract experiment details: {e}")
+        logger.error(traceback.format_exc())
+        raise ExtractionError(f"Failed to extract experiment parameters: {str(e)}") from e
     
-    control_group = normalise_control_codes(extracted.control_group)
-    logger.info(f"Normalised control group: {control_group}")
+    # Check if control_group is None - trigger automatic selection
+    auto_selection_artifacts = None
+    if extracted.control_group is None:
+        logger.info("No control group specified, triggering automatic selection...")
+        client = current_app.config.get("OPENAI_CLIENT")
+        if client is None:
+            raise ExtractionError("Cannot auto-select controls: OpenAI client not configured")
+        
+        from services.control_selector import ControlSelector
+        selector = ControlSelector(client)
+        
+        try:
+            selection_result = selector.select_controls(
+                df=dataset,
+                target_var=extracted.target_var,
+                intervention_start_date=extracted.intervention_start_date
+            )
+            control_group = selection_result["selected_columns"]
+            auto_selection_artifacts = selection_result
+            logger.info(f"Auto-selected control groups: {control_group}")
+        except Exception as e:
+            logger.error(f"Automatic control selection failed: {e}")
+            logger.error(traceback.format_exc())
+            raise ExtractionError(f"Automatic control selection failed: {str(e)}") from e
+    else:
+        control_group = normalise_control_codes(extracted.control_group)
+        logger.info(f"Normalised control group: {control_group}")
 
-    date_column = llm.extract_date_column(dataset)
-    logger.info(f"Identified date column: {date_column}")
+    try:
+        logger.info("Extracting date column from dataset...")
+        date_column = llm.extract_date_column(dataset)
+        logger.info(f"Identified date column: {date_column}")
+    except Exception as e:
+        logger.error(f"Failed to extract date column: {e}")
+        logger.error(traceback.format_exc())
+        raise ExtractionError(f"Failed to identify date column: {str(e)}") from e
     
     indexed_dataset = dataset.set_index(pd.to_datetime(dataset[date_column]))
     logger.info(f"Created indexed dataset with index: {indexed_dataset.index[:5].tolist()}")
+
+    # Select the appropriate model based on user's message
+    client = current_app.config.get("OPENAI_CLIENT")
+    if client is None:
+        logger.warning("OpenAI client not available, defaulting to SyntheticControl")
+        selected_model = "cp.SyntheticControl"
+        model_reasoning = []
+    else:
+        try:
+            logger.info("Selecting model using LLM...")
+            model_selector = ModelSelector(client)
+            selected_model, model_reasoning = model_selector.select_model(message)
+            logger.info(f"Selected model: {selected_model}")
+        except ModelSelectionError as e:
+            logger.error(f"Model selection failed: {e}, defaulting to SyntheticControl")
+            selected_model = "cp.SyntheticControl"
+            model_reasoning = []
+        except Exception as e:
+            logger.error(f"Unexpected error during model selection: {e}, defaulting to SyntheticControl")
+            logger.error(traceback.format_exc())
+            selected_model = "cp.SyntheticControl"
+            model_reasoning = []
 
     experiment_config = {
         "intervention_start_date": extracted.intervention_start_date,
         "intervention_end_date": extracted.intervention_end_date,
         "target_var": extracted.target_var,
         "control_group": control_group,
+        "selected_model": selected_model,
+        "extra_variables": extracted.extra_variables,
     }
     logger.info(f"Experiment config: {experiment_config}")
 
     outputs = run_experiment(experiment_config, indexed_dataset, sample_kwargs=sample_kwargs)
+    
+    # Add artifacts to outputs
+    outputs["artifacts"] = {
+        "selected_model": selected_model,
+        "model_selection_reasoning": model_reasoning,
+        "auto_control_selection": auto_selection_artifacts,
+    }
+    
     logger.info("run_experiment_pipeline completed successfully")
     return outputs
 
@@ -177,10 +249,200 @@ def compute_popover_position(
     return "attachment-top"
 
 
+def _build_posterior_accordion(posterior_mean_effect: List, posterior_cumulative_effect: List) -> Optional[dmc.Accordion]:
+    """Build accordion for posterior effect distributions (mean and cumulative)."""
+    if not posterior_mean_effect and not posterior_cumulative_effect:
+        return None
+    
+    panel_content = []
+    
+    if posterior_mean_effect:
+        panel_content.extend([
+            html.H2("Posterior Distribution of Mean Effect", style={"fontSize": "1.25rem", "fontWeight": "600", "marginTop": "1rem", "marginBottom": "0.5rem"}),
+            html.P(
+                "This distribution represents the uncertainty in the average daily effect during the intervention period. "
+                "Each sample from the posterior distribution represents a plausible value for the mean effect, "
+                "given the observed data and model assumptions.",
+                style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
+            ),
+            dcc.Graph(
+                figure=build_distribution_plot(posterior_mean_effect, "Posterior mean effect"),
+                config={"displayModeBar": False},
+                className="result-chart",
+            ),
+        ])
+    
+    if posterior_cumulative_effect:
+        panel_content.extend([
+            html.H2("Posterior Distribution of Cumulative Effect", style={"fontSize": "1.25rem", "fontWeight": "600", "marginTop": "1.5rem", "marginBottom": "0.5rem"}),
+            html.P(
+                "This distribution represents the uncertainty in the total accumulated effect during the intervention period. "
+                "Each sample from the posterior distribution represents a plausible value for the cumulative effect, "
+                "which is the sum of all daily effects throughout the intervention.",
+                style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
+            ),
+            dcc.Graph(
+                figure=build_distribution_plot(posterior_cumulative_effect, "Posterior cumulative effect"),
+                config={"displayModeBar": False},
+                className="result-chart",
+            ),
+        ])
+    
+    return dmc.Accordion(
+        disableChevronRotation=True,
+        chevronPosition="left",
+        variant="separated",
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Posterior Effect Distributions",
+                        icon=DashIconify(
+                            icon="material-symbols:data-check-rounded",
+                            width=20,
+                        ),
+                    ),
+                    dmc.AccordionPanel(panel_content),
+                ],
+                value="posterior",
+            ),
+        ],
+        style={"marginTop": "2rem", "marginBottom": "1.5rem"}
+    )
+
+
+def _build_sensitivity_accordion(sensitivity_analysis: Dict[str, Any]) -> Optional[dmc.Accordion]:
+    """Build accordion for sensitivity analysis (placebo testing)."""
+    if not sensitivity_analysis:
+        return None
+    
+    panel_content = []
+    
+    if sensitivity_analysis.get("success"):
+        # Successfully ran sensitivity analysis - show plots and statistics
+        posterior_mean_sens = sensitivity_analysis.get("posterior_mean", [])
+        posterior_cumulative_sens = sensitivity_analysis.get("posterior_cumulative", [])
+        stats = sensitivity_analysis.get("statistics", {})
+        
+        panel_content.append(
+            html.P(
+                "Sensitivity analysis validates the model's robustness by running placebo tests in the pre-intervention period. "
+                "The model is applied to time windows before the actual intervention to check if it spuriously detects effects when none should exist. "
+                "If the placebo effect distribution is centered near zero and the true effect is outside this range, "
+                "it strengthens confidence in the causal interpretation.",
+                style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
+            )
+        )
+        
+        # Add statistics metrics
+        if stats:
+            mean_val = stats.get("mean", "N/A")
+            std_val = stats.get("std", "N/A")
+            q_95 = stats.get("quantiles_95", ["N/A", "N/A"])
+            normality = stats.get("normality_tests", {})
+            shapiro_p = normality.get("shapiro", {}).get("p_value", "N/A")
+            
+            stats_cards = [
+                html.Div([
+                    html.Div("Placebo Mean", className="metric-label"),
+                    html.Div(f"{mean_val:.4f}" if isinstance(mean_val, (int, float)) else mean_val, className="metric-value"),
+                ], className="metric-card"),
+                html.Div([
+                    html.Div("Placebo Std Dev", className="metric-label"),
+                    html.Div(f"{std_val:.4f}" if isinstance(std_val, (int, float)) else std_val, className="metric-value"),
+                ], className="metric-card"),
+                html.Div([
+                    html.Div("95% CI", className="metric-label"),
+                    html.Div(f"[{q_95[0]:.4f}, {q_95[1]:.4f}]" if all(isinstance(x, (int, float)) for x in q_95) else str(q_95), className="metric-value"),
+                ], className="metric-card"),
+                html.Div([
+                    html.Div("Normality (p-value)", className="metric-label"),
+                    html.Div(f"{shapiro_p:.4f}" if isinstance(shapiro_p, (int, float)) else shapiro_p, className="metric-value"),
+                ], className="metric-card"),
+            ]
+            
+            panel_content.append(html.Div(stats_cards, className="metric-grid"))
+        
+        # Add mean effect distribution plot
+        if posterior_mean_sens:
+            panel_content.extend([
+                html.H2("Placebo Mean Effect Distribution", style={"fontSize": "1.25rem", "fontWeight": "600", "marginTop": "1.5rem", "marginBottom": "0.5rem"}),
+                html.P(
+                    "Distribution of mean effects detected during placebo tests. Values near zero indicate the model is not detecting spurious effects.",
+                    style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
+                ),
+                dcc.Graph(
+                    figure=build_sensitivity_plot(posterior_mean_sens, "Posterior estimated effect during placebo's test"),
+                    config={"displayModeBar": False},
+                    className="result-chart",
+                ),
+            ])
+        
+        # Add cumulative effect distribution plot
+        if posterior_cumulative_sens:
+            panel_content.extend([
+                html.H2("Placebo Cumulative Effect Distribution", style={"fontSize": "1.25rem", "fontWeight": "600", "marginTop": "1.5rem", "marginBottom": "0.5rem"}),
+                html.P(
+                    "Distribution of cumulative effects detected during placebo tests. Values near zero indicate the model is not detecting spurious cumulative effects.",
+                    style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
+                ),
+                dcc.Graph(
+                    figure=build_sensitivity_plot(posterior_cumulative_sens, "Posterior cumulative effect during placebo's test"),
+                    config={"displayModeBar": False},
+                    className="result-chart",
+                ),
+            ])
+    else:
+        # Sensitivity analysis failed - show error message
+        error_message = sensitivity_analysis.get("error", "Unknown error")
+        panel_content.append(
+            html.Div(
+                [
+                    html.Div("⚠️ Sensitivity Analysis Unavailable", className="error-notification-icon", style={"fontSize": "1.5rem"}),
+                    html.Div(
+                        [
+                            html.P("Sensitivity analysis could not be estimated:", style={"fontWeight": "600", "marginBottom": "0.5rem"}),
+                            html.P(error_message, style={"fontStyle": "italic"}),
+                        ],
+                        className="error-notification-message"
+                    ),
+                ],
+                className="error-notification",
+                style={"marginBottom": "1.5rem"}
+            )
+        )
+    
+    return dmc.Accordion(
+        disableChevronRotation=True,
+        chevronPosition="left",
+        variant="separated",
+        children=[
+            dmc.AccordionItem(
+                [
+                    dmc.AccordionControl(
+                        "Sensitivity Analysis (Placebo Testing)",
+                        icon=DashIconify(
+                            icon="material-symbols:shield-toggle-outline",
+                            width=20,
+                        ),
+                    ),
+                    dmc.AccordionPanel(panel_content),
+                ],
+                value="sensitivity",
+            ),
+        ],
+        style={"marginTop": "2rem", "marginBottom": "1.5rem"}
+    )
+
+
 def _render_experiment_detail(experiment: Dict[str, Any]) -> List[html.Component]:
     start_label = _format_date(experiment.get("start_date"))
     end_label = _format_date(experiment.get("end_date"))
     dataset_label = experiment.get("dataset_name") or "No file attached"
+    
+    # Extract model name from artifacts
+    artifacts = experiment.get("results", {}).get("artifacts", {})
+    model_label = _format_model_name(artifacts.get("selected_model"))
 
     # Helper function to build metric cards from summary dict
     def build_metric_cards(summary_dict):
@@ -249,6 +511,7 @@ def _render_experiment_detail(experiment: Dict[str, Any]) -> List[html.Component
                         html.Div([html.Div("Start date", className="meta-label"), html.Div(start_label, className="meta-value")]),
                         html.Div([html.Div("End date", className="meta-label"), html.Div(end_label, className="meta-value")]),
                         html.Div([html.Div("Dataset", className="meta-label"), html.Div(dataset_label, className="meta-value")]),
+                        html.Div([html.Div("Model", className="meta-label"), html.Div(model_label, className="meta-value")]),
                     ],
                     className="meta-grid",
                 ),
@@ -286,41 +549,18 @@ def _render_experiment_detail(experiment: Dict[str, Any]) -> List[html.Component
         chart,
     ])
     
-    # Add posterior distribution plots if available
+    # Add posterior distribution accordion if available
     posterior_mean_effect = experiment["results"].get("posterior_mean_effect", [])
     posterior_cumulative_effect = experiment["results"].get("posterior_cumulative_effect", [])
+    posterior_accordion = _build_posterior_accordion(posterior_mean_effect, posterior_cumulative_effect)
+    if posterior_accordion:
+        components.append(posterior_accordion)
     
-    if posterior_mean_effect:
-        components.extend([
-            html.H1("Posterior Distribution of Mean Effect", style={"fontSize": "1.5rem", "fontWeight": "600", "marginTop": "2rem", "marginBottom": "0.5rem"}),
-            html.P(
-                "This distribution represents the uncertainty in the average daily effect during the intervention period. "
-                "Each sample from the posterior distribution represents a plausible value for the mean effect, "
-                "given the observed data and model assumptions.",
-                style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
-            ),
-            dcc.Graph(
-                figure=build_distribution_plot(posterior_mean_effect, "Posterior mean effect"),
-                config={"displayModeBar": False},
-                className="result-chart",
-            ),
-        ])
-    
-    if posterior_cumulative_effect:
-        components.extend([
-            html.H1("Posterior Distribution of Cumulative Effect", style={"fontSize": "1.5rem", "fontWeight": "600", "marginTop": "2rem", "marginBottom": "0.5rem"}),
-            html.P(
-                "This distribution represents the uncertainty in the total accumulated effect during the intervention period. "
-                "Each sample from the posterior distribution represents a plausible value for the cumulative effect, "
-                "which is the sum of all daily effects throughout the intervention.",
-                style={"color": "#64748b", "marginBottom": "1rem", "lineHeight": "1.6"}
-            ),
-            dcc.Graph(
-                figure=build_distribution_plot(posterior_cumulative_effect, "Posterior cumulative effect"),
-                config={"displayModeBar": False},
-                className="result-chart",
-            ),
-        ])
+    # Add sensitivity analysis accordion if available
+    sensitivity_analysis = experiment["results"].get("sensitivity_analysis")
+    sensitivity_accordion = _build_sensitivity_accordion(sensitivity_analysis)
+    if sensitivity_accordion:
+        components.append(sensitivity_accordion)
     
     # Add AI-generated summary section if available
     ai_summary = experiment["results"].get("ai_summary")
@@ -329,9 +569,9 @@ def _render_experiment_detail(experiment: Dict[str, Any]) -> List[html.Component
             html.Div(
                 [
                     html.Div("AI-Generated Summary", className="ai-summary-title"),
-                    html.Div(ai_summary, className="ai-summary-text"),
+                    dcc.Markdown(f"{ai_summary}", className="ai-summary-text"),
                     html.Div(
-                        "⚠️ AI-Generated Content - Please verify the interpretation below",
+                        "⚠️ Please verify the interpretation below",
                         className="ai-summary-disclaimer"
                     ),
                 ],
@@ -350,6 +590,23 @@ def _format_date(value: Optional[str]) -> str:
         return f"{parsed:%b %d, %Y}"
     except ValueError:
         return value
+
+
+def _format_model_name(model_string: Optional[str]) -> str:
+    """Convert model string like 'cp.SyntheticControl' to 'Synthetic Control'."""
+    if not model_string:
+        return "N/A"
+    
+    # Remove 'cp.' prefix if present
+    if model_string.startswith("cp."):
+        model_string = model_string[3:]
+    
+    # Convert CamelCase to spaced words
+    # SyntheticControl -> Synthetic Control
+    # InterruptedTimeSeries -> Interrupted Time Series
+    import re
+    formatted = re.sub(r'([A-Z])', r' \1', model_string).strip()
+    return formatted
 
 
 app = Dash(__name__, server=server, url_base_pathname="/dash/")
@@ -976,122 +1233,124 @@ def _initial_experiments_state() -> List[Dict[str, Any]]:
     return experiments
 
 
-def serve_layout() -> html.Div:
+def serve_layout():
     initial_experiments = _initial_experiments_state()
-    return html.Div(
-        [
-            dcc.Store(id="experiments-store", data=initial_experiments),
-            dcc.Store(id="sidebar-expanded", data=True),
-            dcc.Store(id="selected-experiment", data="New Experiment"),
-            dcc.Store(id="uploaded-filename", data=None),
-            dcc.Store(id="error-message", data=None),
-            dcc.Store(id="processing-trigger", data=None),
-            dcc.Store(id="processing-metadata", data={}),
-            dcc.Store(id="delete-confirmation-experiment", data=None),
-            dcc.Store(id="delete-confirmation-visible", data=False),
-            dcc.Interval(id="cleanup-interval", interval=30000, n_intervals=0),  # Check every 30 seconds
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.Div("Library", className="sidebar-title"),
-                                    html.Button("⟷", id="sidebar-toggle", className="expand-button", n_clicks=0),
-                                ],
-                                className="sidebar-header",
-                            ),
-                            html.Div(id="experiment-list", className="experiment-list"),
-                            html.Div(
-                                dcc.Link(
-                                    "⏻",
-                                    className="logout-button",
-                                    title="Log out",
-                                    href="/logout",
+    return dmc.MantineProvider(
+        html.Div(
+            [
+                dcc.Store(id="experiments-store", data=initial_experiments),
+                dcc.Store(id="sidebar-expanded", data=True),
+                dcc.Store(id="selected-experiment", data="New Experiment"),
+                dcc.Store(id="uploaded-filename", data=None),
+                dcc.Store(id="error-message", data=None),
+                dcc.Store(id="processing-trigger", data=None),
+                dcc.Store(id="processing-metadata", data={}),
+                dcc.Store(id="delete-confirmation-experiment", data=None),
+                dcc.Store(id="delete-confirmation-visible", data=False),
+                dcc.Interval(id="cleanup-interval", interval=30000, n_intervals=0),  # Check every 30 seconds
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Div("Library", className="sidebar-title"),
+                                        html.Button("⟷", id="sidebar-toggle", className="expand-button", n_clicks=0),
+                                    ],
+                                    className="sidebar-header",
                                 ),
-                                className="logout-container",
-                            ),
-                        ],
-                        id="sidebar",
-                        className="sidebar expanded",
-                    ),
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.Div("New Experiment", id="top-title", className="top-title"),
-                                ],
-                                className="top-bar",
-                            ),
-                            html.Div(
-                                [
-                            html.Div(id="error-notification", style={"display": "none"}),
-                            html.Div(
-                                [
-                                    html.H2("What are we testing today?", className="hero-title"),
-                                    html.Div(
-                                        [
-                                            html.Div(
-                                                [
-                                                    html.Button("＋", id="toggle-attachments", className="composer-icon"),
-                                                    dcc.Textarea(
-                                                        id="form-message",
-                                                        placeholder="Describe the experiment you want to run…",
-                                                        className="composer-input",
-                                                        value="",
-                                                    ),
-                                                    html.Button("➤", id="composer-send", className="composer-icon send"),
-                                                ],
-                                                id="message-composer",
-                                                className="message-composer",
-                                            ),
-                                            html.Div(id="composer-chips", className="composer-chip-row"),
-                                            html.Div(id="upload-feedback", className="upload-feedback-container"),
-                                            html.Div(
-                                                [
-                                                    html.Div(
-                                                        [
-                                                            html.Div("Dataset", className="attachment-label"),
-                                                            dcc.Upload(
-                                                                id="upload-data",
-                                                                children=html.Div(
-                                                                    [
-                                                                        "Drag and drop or ",
-                                                                        html.Span("browse", style={"color": "#2563eb", "fontWeight": "600"}),
-                                                                    ],
-                                                                    className="upload-box",
-                                                                ),
-                                                                multiple=False,
-                                                            ),
-                                                        ],
-                                                        className="attachment-column",
-                                                    ),
-                                                ],
-                                                id="attachment-area",
-                                                className="attachment-popover attachment-top",
-                                                style={"display": "none"},
-                                            ),
-                                        ],
-                                        className="composer-wrapper",
-                                        id="composer-wrapper",
+                                html.Div(id="experiment-list", className="experiment-list"),
+                                html.Div(
+                                    dcc.Link(
+                                        "⏻",
+                                        className="logout-button",
+                                        title="Log out",
+                                        href="/logout",
                                     ),
-                                ],
-                                id="new-experiment-view",
-                                className="card",
-                            ),
-                            html.Div(id="experiment-detail-view", className="card", style={"display": "none"}),
-                                ],
-                                className="content-area",
-                            ),
-                        ],
-                        className="main",
-                        id="main-container",
-                    ),
-                ],
-                className="app-shell",
-            ),
-            html.Div(id="delete-confirmation-modal", style={"display": "none"}),
-        ],
+                                    className="logout-container",
+                                ),
+                            ],
+                            id="sidebar",
+                            className="sidebar expanded",
+                        ),
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Div("New Experiment", id="top-title", className="top-title"),
+                                    ],
+                                    className="top-bar",
+                                ),
+                                html.Div(
+                                    [
+                                html.Div(id="error-notification", style={"display": "none"}),
+                                html.Div(
+                                    [
+                                        html.H2("What are we testing today?", className="hero-title"),
+                                        html.Div(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.Button("＋", id="toggle-attachments", className="composer-icon"),
+                                                        dcc.Textarea(
+                                                            id="form-message",
+                                                            placeholder="Describe the experiment you want to run…",
+                                                            className="composer-input",
+                                                            value="",
+                                                        ),
+                                                        html.Button("➤", id="composer-send", className="composer-icon send"),
+                                                    ],
+                                                    id="message-composer",
+                                                    className="message-composer",
+                                                ),
+                                                html.Div(id="composer-chips", className="composer-chip-row"),
+                                                html.Div(id="upload-feedback", className="upload-feedback-container"),
+                                                html.Div(
+                                                    [
+                                                        html.Div(
+                                                            [
+                                                                html.Div("Dataset", className="attachment-label"),
+                                                                dcc.Upload(
+                                                                    id="upload-data",
+                                                                    children=html.Div(
+                                                                        [
+                                                                            "Drag and drop or ",
+                                                                            html.Span("browse", style={"color": "#2563eb", "fontWeight": "600"}),
+                                                                        ],
+                                                                        className="upload-box",
+                                                                    ),
+                                                                    multiple=False,
+                                                                ),
+                                                            ],
+                                                            className="attachment-column",
+                                                        ),
+                                                    ],
+                                                    id="attachment-area",
+                                                    className="attachment-popover attachment-top",
+                                                    style={"display": "none"},
+                                                ),
+                                            ],
+                                            className="composer-wrapper",
+                                            id="composer-wrapper",
+                                        ),
+                                    ],
+                                    id="new-experiment-view",
+                                    className="card",
+                                ),
+                                html.Div(id="experiment-detail-view", className="card", style={"display": "none"}),
+                                    ],
+                                    className="content-area",
+                                ),
+                            ],
+                            className="main",
+                            id="main-container",
+                        ),
+                    ],
+                    className="app-shell",
+                ),
+                html.Div(id="delete-confirmation-modal", style={"display": "none"}),
+            ],
+        )
     )
 
 

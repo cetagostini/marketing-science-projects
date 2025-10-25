@@ -74,6 +74,31 @@ def generate_ai_summary(
         # Capture the model summary output
         summary_coefficients = capture_model_summary(model)
         
+        # Check for sensitivity analysis results
+        sensitivity_analysis = results.get("sensitivity_analysis", {})
+        sensitivity_text = ""
+        
+        if sensitivity_analysis.get("success"):
+            stats = sensitivity_analysis.get("statistics", {})
+            mean_sens = stats.get("mean", "N/A")
+            std_sens = stats.get("std", "N/A")
+            q_95 = stats.get("quantiles_95", ["N/A", "N/A"])
+            normality = stats.get("normality_tests", {})
+            shapiro_p = normality.get("shapiro", {}).get("p_value", "N/A")
+            
+            sensitivity_text = f"""
+
+SENSITIVITY ANALYSIS (Placebo Testing):
+The sensitivity analysis ran {3} placebo tests to validate the model's robustness.
+Placebo effect estimate: {mean_sens} ± {std_sens}
+95% Credible Interval for placebo effect: [{q_95[0]}, {q_95[1]}]
+Shapiro-Wilk normality test p-value: {shapiro_p}
+
+This placebo testing helps assess whether the model could spuriously detect effects when none exist.
+If the placebo effect distribution is centered near zero and the true effect is outside this range,
+it strengthens confidence in the causal interpretation.
+"""
+        
         # Format the prompt
         input_experiment = f"""
 The experiment got a mean effect of {mean_effect} with a 94% interval of {mean_intervals}.
@@ -83,6 +108,7 @@ The cumulative results say an effect of {cumulative_effect} with a 94% interval 
 
 The coefficients of each of the control units are:
 {summary_coefficients}
+{sensitivity_text}
 """
         
         logger.info(f"Calling OpenAI API with input length: {len(input_experiment)}")
@@ -96,7 +122,11 @@ The coefficients of each of the control units are:
                     "content": [
                         {
                             "type": "text",
-                            "text": "You are a helpful assistant that creates an overview with opinion based on the results of a quasi experiment, dictating how much do you think the user should consider it truth based only on the inputs given. Use a two paragraph format without markdown style, only plain text."
+                            "text": """
+                            You are a helpful assistant that creates an overview with opinion based on the results of a quasi experiment. 
+                            You should provide a detailed explanation of the results and how much do you think the user should consider it truth based only on the inputs given. 
+                            Use a two paragraph format with markdown style, clear, concise and easy to understand for non-technical users.
+                            """
                         }
                     ]
                 },

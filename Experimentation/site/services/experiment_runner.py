@@ -11,8 +11,10 @@ import plotly.graph_objs as go
 import plotly.figure_factory as ff
 from pydantic import BaseModel
 from flask import current_app
+from scipy import stats
 
 import causalpy as cp  # type: ignore
+import xarray as xr
 
 from services.ai_summary import generate_ai_summary
 
@@ -34,6 +36,8 @@ class Experiment(BaseModel):
     target_var: str
     control_group: list[str]
     dataset: pd.DataFrame
+    selected_model: str = "cp.SyntheticControl"  # Default to SyntheticControl
+    extra_variables: Optional[list[str]] = None
     sample_kwargs: Optional[Dict[str, Any]] = None
 
     def __init__(self, **kwargs: Any) -> None:
@@ -43,14 +47,41 @@ class Experiment(BaseModel):
             kwargs["intervention_end_date"] = kwargs["intervention_end_date"].strftime("%Y-%m-%d")
         super().__init__(**kwargs)
 
-    def run(self) -> cp.SyntheticControl:
-        return cp.SyntheticControl(
-            self.dataset,
-            pd.to_datetime(self.intervention_start_date),
-            control_units=self.control_group,
-            treated_units=[self.target_var],
-            model=cp.pymc_models.WeightedSumFitter(sample_kwargs=self.sample_kwargs),
-        )
+    def run(self) -> Any:
+        """Run the experiment using the selected model.
+        
+        Returns:
+            A causalpy model result (SyntheticControl or InterruptedTimeSeries)
+        """
+        treatment_time = pd.to_datetime(self.intervention_start_date)
+        
+        if self.selected_model == "cp.SyntheticControl":
+            logger.info("Running SyntheticControl model")
+            return cp.SyntheticControl(
+                self.dataset,
+                treatment_time,
+                control_units=self.control_group,
+                treated_units=[self.target_var],
+                model=cp.pymc_models.WeightedSumFitter(sample_kwargs=self.sample_kwargs),
+            )
+        elif self.selected_model == "cp.InterruptedTimeSeries":
+            logger.info("Running InterruptedTimeSeries model")
+            # Build formula: target ~ 1 + control1 + control2 + ...
+            formula_parts = [self.target_var, "1"] + self.control_group
+            formula = f"{formula_parts[0]} ~ {' + '.join(formula_parts[1:])}"
+            logger.info(f"ITS formula: {formula}")
+            
+            return cp.InterruptedTimeSeries(
+                self.dataset,
+                treatment_time,
+                formula=formula,
+                model=cp.pymc_models.LinearRegression(sample_kwargs=self.sample_kwargs),
+            )
+        else:
+            raise ValueError(
+                f"Unsupported model: {self.selected_model}. "
+                f"Must be one of: cp.SyntheticControl, cp.InterruptedTimeSeries"
+            )
 
 
 class SensitivityAnalysis(BaseModel):
@@ -122,13 +153,15 @@ class SensitivityAnalysis(BaseModel):
 
     def _fit_its_model(
         self, fold_df: pd.DataFrame, pseudo_start: pd.Timestamp, pseudo_end: pd.Timestamp
-    ) -> cp.SyntheticControl:
+    ) -> Any:
         return Experiment(
             dataset=fold_df,
             intervention_start_date=pseudo_start.strftime("%Y-%m-%d"),
             intervention_end_date=pseudo_end.strftime("%Y-%m-%d"),
             target_var=self.experiment.target_var,
             control_group=self.experiment.control_group,
+            selected_model=self.experiment.selected_model,
+            extra_variables=self.experiment.extra_variables,
             sample_kwargs=self.experiment.sample_kwargs,
         ).run()
 
@@ -158,6 +191,227 @@ class SensitivityAnalysis(BaseModel):
             )
 
         return results
+
+
+def run_sensitivity_analysis(experiment: Experiment, n_cuts: int = 3) -> Dict[str, Any]:
+    """Run sensitivity analysis (placebo testing) for an experiment.
+    
+    Args:
+        experiment: The experiment object to run sensitivity analysis on
+        n_cuts: Number of cuts for placebo testing (default 3)
+        
+    Returns:
+        Dictionary with 'success', 'data', and 'error' keys
+    """
+    try:
+        logger.info(f"Running sensitivity analysis with n_cuts={n_cuts}")
+        sensitivity_analysis = SensitivityAnalysis(
+            experiment=experiment,
+            n_cuts=n_cuts,
+        )
+        sensitivity_results = sensitivity_analysis.run()
+        logger.info(f"Sensitivity analysis completed with {len(sensitivity_results)} results")
+        return {
+            "success": True,
+            "data": sensitivity_results,
+            "error": None,
+        }
+    except ValueError as e:
+        logger.warning(f"Sensitivity analysis failed (insufficient data): {e}")
+        return {
+            "success": False,
+            "data": None,
+            "error": str(e),
+        }
+    except Exception as e:
+        logger.error(f"Sensitivity analysis failed unexpectedly: {e}")
+        return {
+            "success": False,
+            "data": None,
+            "error": f"Unexpected error: {str(e)}",
+        }
+
+
+def extract_posterior_sensitivity(sensitivity_results: list) -> Tuple[xr.DataArray, xr.DataArray]:
+    """Extract posterior sensitivity distributions from sensitivity analysis results.
+    
+    Args:
+        sensitivity_results: List of sensitivity analysis results from SensitivityAnalysis.run()
+        
+    Returns:
+        Tuple of (posterior_sensitivity_mean, posterior_sensitivity_cumulative)
+    """
+    logger.info("Extracting posterior sensitivity distributions")
+    
+    posterior_sensitivity_mean = xr.concat(
+        [dat["result"].post_impact.stack(sample=["draw", "chain"]).isel(treated_units=0).mean("obs_ind") 
+         for dat in sensitivity_results], 
+        dim="sample"
+    )
+    
+    posterior_sensitivity_cumulative = xr.concat(
+        [dat["result"].post_impact.stack(sample=["draw", "chain"]).isel(treated_units=0).sum("obs_ind") 
+         for dat in sensitivity_results], 
+        dim="sample"
+    )
+    
+    logger.info(f"Extracted {len(posterior_sensitivity_mean.values)} posterior samples for mean")
+    logger.info(f"Extracted {len(posterior_sensitivity_cumulative.values)} posterior samples for cumulative")
+    
+    return posterior_sensitivity_mean, posterior_sensitivity_cumulative
+
+
+def compute_sensitivity_statistics(posterior_sensitivity_mean: xr.DataArray) -> Dict[str, Any]:
+    """Compute normality tests and quantiles for sensitivity analysis.
+    
+    Args:
+        posterior_sensitivity_mean: Posterior sensitivity mean distribution
+        
+    Returns:
+        Dictionary containing statistics, normality tests, and quantiles
+    """
+    logger.info("Computing sensitivity statistics")
+    
+    values = posterior_sensitivity_mean.values
+    
+    # Compute normality tests
+    shapiro_stat, shapiro_p = stats.shapiro(values)
+    ks_stat, ks_p = stats.kstest(values, 'norm', args=(values.mean(), values.std()))
+    anderson_result = stats.anderson(values, dist='norm')
+    
+    # Compute descriptive statistics
+    mean_val = float(posterior_sensitivity_mean.mean().item())
+    std_val = float(posterior_sensitivity_mean.std().item())
+    
+    # Compute quantiles
+    q_95 = posterior_sensitivity_mean.quantile([0.025, 0.975]).values
+    q_90 = posterior_sensitivity_mean.quantile([0.05, 0.95]).values
+    q_98 = posterior_sensitivity_mean.quantile([0.01, 0.5, 0.99]).values
+    
+    statistics = {
+        "mean": mean_val,
+        "std": std_val,
+        "quantiles_95": [float(q_95[0]), float(q_95[1])],
+        "quantiles_90": [float(q_90[0]), float(q_90[1])],
+        "quantiles_98": [float(q_98[0]), float(q_98[1]), float(q_98[2])],
+        "normality_tests": {
+            "shapiro": {"statistic": float(shapiro_stat), "p_value": float(shapiro_p)},
+            "kolmogorov_smirnov": {"statistic": float(ks_stat), "p_value": float(ks_p)},
+            "anderson": {
+                "statistic": float(anderson_result.statistic),
+                "critical_values": anderson_result.critical_values.tolist(),
+                "significance_levels": anderson_result.significance_level.tolist(),
+            },
+        },
+    }
+    
+    logger.info(f"Sensitivity mean: {mean_val:.4f} ± {std_val:.4f}")
+    logger.info(f"95% CI: [{q_95[0]:.4f}, {q_95[1]:.4f}]")
+    
+    return statistics
+
+
+def build_sensitivity_plot(posterior_sensitivity_values: list, label: str) -> go.Figure:
+    """Build a distribution plot for sensitivity analysis with HDI bounds.
+    
+    Args:
+        posterior_sensitivity_values: List of posterior sensitivity samples
+        label: Label for the distribution
+        
+    Returns:
+        Plotly figure showing the distribution with zero line and HDI bounds
+    """
+    if not posterior_sensitivity_values:
+        # Return empty figure if no samples
+        fig = go.Figure()
+        fig.update_layout(
+            template="plotly_white",
+            height=350,
+            annotations=[{
+                "text": "No sensitivity samples available",
+                "xref": "paper",
+                "yref": "paper",
+                "showarrow": False,
+                "font": {"size": 14}
+            }]
+        )
+        return fig
+    
+    try:
+        # Convert to xarray for HDI computation
+        posterior_xr = xr.DataArray(posterior_sensitivity_values, dims=["sample"])
+        
+        # Compute HDI bounds
+        if HAS_ARVIZ:
+            hdi = az.hdi(posterior_xr, hdi_prob=0.84, input_core_dims=[["sample"]])
+            hdi_lower = float(hdi.x[0].item())
+            hdi_upper = float(hdi.x[1].item())
+        else:
+            # Fallback to quantiles if arviz not available
+            logger.warning("arviz not available, using quantiles instead of HDI")
+            hdi_lower = float(posterior_xr.quantile(0.08))
+            hdi_upper = float(posterior_xr.quantile(0.92))
+        
+        # Create distribution plot
+        fig = ff.create_distplot(
+            [posterior_sensitivity_values],
+            [label],
+            bin_size=0.01,
+            show_rug=False,
+            show_hist=True,
+            show_curve=True,
+        )
+        
+        # Add vertical line at zero (True results)
+        fig.add_vline(
+            x=0,
+            line_dash="dash",
+            line_color="red",
+            annotation_text="True results",
+            annotation_position="top"
+        )
+        
+        # Add HDI bounds (ROPE)
+        fig.add_vline(
+            x=hdi_lower,
+            line_dash="dash",
+            line_color="green",
+            annotation_text="Rope lower bound",
+            annotation_position="bottom left"
+        )
+        fig.add_vline(
+            x=hdi_upper,
+            line_dash="dash",
+            line_color="green",
+            annotation_text="Rope upper bound",
+            annotation_position="bottom right"
+        )
+        
+        # Update layout
+        fig.update_layout(
+            template="plotly_white",
+            height=350,
+            showlegend=False,
+            margin=dict(l=40, r=24, t=24, b=40),
+            xaxis_title="Effect",
+            yaxis_title="Density",
+        )
+        
+        logger.info(f"Built sensitivity plot with HDI [{hdi_lower:.4f}, {hdi_upper:.4f}]")
+        
+        return fig
+        
+    except Exception as e:
+        logger.error(f"Failed to build sensitivity plot: {e}")
+        # Return simple histogram as fallback
+        fig = go.Figure(data=[go.Histogram(x=posterior_sensitivity_values)])
+        fig.update_layout(
+            template="plotly_white",
+            height=350,
+            xaxis_title="Effect",
+            yaxis_title="Count",
+        )
+        return fig
 
 
 def _to_datetime_string(value: Any) -> str:
@@ -476,7 +730,8 @@ def run_experiment(
     logger.info(f"Dataset index type: {type(dataset.index)}")
     
     experiment = Experiment(dataset=dataset, sample_kwargs=sample_kwargs, **experiment_config)
-    logger.info("Experiment object created, running model...")
+    logger.info(f"Experiment object created with model: {experiment.selected_model}")
+    logger.info("Running model...")
     
     model = experiment.run()
     logger.info("Model run completed")
@@ -525,6 +780,35 @@ def run_experiment(
         posterior_mean_effect = []
         posterior_cumulative_effect = []
 
+    # Run sensitivity analysis (placebo testing)
+    logger.info("Starting sensitivity analysis...")
+    sensitivity_result = run_sensitivity_analysis(experiment, n_cuts=3)
+    
+    if sensitivity_result["success"]:
+        try:
+            posterior_mean, posterior_cumulative = extract_posterior_sensitivity(sensitivity_result["data"])
+            stats = compute_sensitivity_statistics(posterior_mean)
+            sensitivity_analysis = {
+                "success": True,
+                "posterior_mean": posterior_mean.values.tolist(),
+                "posterior_cumulative": posterior_cumulative.values.tolist(),
+                "statistics": stats,
+                "error": None,
+            }
+            logger.info("Sensitivity analysis completed successfully")
+        except Exception as e:
+            logger.error(f"Failed to process sensitivity results: {e}")
+            sensitivity_analysis = {
+                "success": False,
+                "error": f"Failed to process sensitivity results: {str(e)}",
+            }
+    else:
+        sensitivity_analysis = {
+            "success": False,
+            "error": sensitivity_result["error"],
+        }
+        logger.info(f"Sensitivity analysis skipped: {sensitivity_result['error']}")
+
     result = {
         "series": time_series,
         "summary": summary_mean,  # Keep for backward compatibility
@@ -533,6 +817,7 @@ def run_experiment(
         "lift_table": lift_table,
         "posterior_mean_effect": posterior_mean_effect,
         "posterior_cumulative_effect": posterior_cumulative_effect,
+        "sensitivity_analysis": sensitivity_analysis,
         "intervention_start_date": experiment.intervention_start_date,
         "intervention_end_date": experiment.intervention_end_date,
         "target_var": experiment.target_var,

@@ -20,7 +20,8 @@ class DataExtractor(BaseModel):
     intervention_start_date: str
     intervention_end_date: str
     target_var: str
-    control_group: list[str]
+    control_group: list[str] | None = None
+    extra_variables: list[str] | None = None
 
 
 class DateColumnExtractor(BaseModel):
@@ -33,9 +34,10 @@ class DateColumnExtractor(BaseModel):
 class LLMExtractionConfig:
     """Configuration for LLM extraction services."""
 
-    data_model: str = "gpt-4o"  # Fixed: was "gpt-4.1" which is not a valid model
+    data_model: str = "gpt-4.1" 
     system_prompt: str = (
-        "You are a helpful assistant that extracts data from text on the format required."
+        "You are a helpful assistant that extracts data from text on the format required. "
+        "If you are not able to determine something then use None for the variables which are possible to be None only."
     )
     date_system_prompt: str = (
         "You are a helpful assistant that extracts any dates column name on the format required based on the dataset information."
@@ -120,9 +122,12 @@ class LLMExtractor:
             raise
 
 
-def normalise_control_codes(values: Iterable[str]) -> list[str]:
+def normalise_control_codes(values: Iterable[str] | None) -> list[str]:
     """Normalise control group identifiers, trimming whitespace and removing blanks."""
-
+    
+    if values is None:
+        return []
+    
     normalised: list[str] = []
     for value in values:
         if value is None:

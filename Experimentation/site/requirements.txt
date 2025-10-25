@@ -8,3 +8,7 @@ pydantic>=2.5
 python-dotenv>=1.0
 dask
 openai>=1.40
+pymc>=5.0.0
+scikit-learn>=1.0.0
+dash-mantine-components>=0.12.0
+dash-iconify>=0.1.2
