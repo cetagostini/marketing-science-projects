@@ -1202,6 +1202,207 @@ app.index_string = """<!DOCTYPE html>
             .delete-confirmation-button.confirm:hover {
                 background: #dc2626;
             }
+            .chat-toggle-button {
+                position: fixed;
+                bottom: 2rem;
+                right: 2rem;
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                border: none;
+                background: #2563eb;
+                color: white;
+                font-size: 1.5rem;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+                transition: all 0.2s ease;
+                z-index: 999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chat-toggle-button:hover {
+                background: #1d4ed8;
+                transform: scale(1.05);
+                box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+            }
+            .chat-panel {
+                position: fixed;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 33.33%;
+                background: white;
+                box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+            }
+            .chat-panel.open {
+                transform: translateX(0);
+            }
+            .chat-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid #e5e7eb;
+                background: #f9fafb;
+            }
+            .chat-header-title {
+                font-size: 1.125rem;
+                font-weight: 600;
+                color: #1f2937;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .chat-close-button {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                border: none;
+                background: transparent;
+                color: #6b7280;
+                font-size: 1.25rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chat-close-button:hover {
+                background: #f3f4f6;
+                color: #1f2937;
+            }
+            .chat-messages-container {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1rem;
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .chat-message {
+                display: flex;
+                gap: 0.75rem;
+                align-items: flex-start;
+            }
+            .chat-message.user {
+                flex-direction: row-reverse;
+            }
+            .chat-avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.125rem;
+                flex-shrink: 0;
+            }
+            .chat-avatar.user {
+                background: #dbeafe;
+                color: #2563eb;
+            }
+            .chat-avatar.assistant {
+                background: #f3f4f6;
+                color: #6b7280;
+            }
+            .chat-bubble {
+                max-width: 70%;
+                padding: 0.75rem 1rem;
+                border-radius: 12px;
+                word-wrap: break-word;
+                white-space: pre-wrap;
+                line-height: 1.5;
+            }
+            .chat-bubble.user {
+                background: #dbeafe;
+                color: #1e3a8a;
+                border: 1px solid #bfdbfe;
+            }
+            .chat-bubble.assistant {
+                background: #f8f9fa;
+                color: #1f2937;
+                border: 1px solid #e5e7eb;
+            }
+            .chat-input-container {
+                padding: 1rem;
+                border-top: 1px solid #e5e7eb;
+                background: #f9fafb;
+            }
+            .chat-input-wrapper {
+                display: flex;
+                gap: 0.5rem;
+                align-items: flex-end;
+            }
+            .chat-input {
+                flex: 1;
+                padding: 0.75rem;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                font-size: 0.95rem;
+                resize: none;
+                min-height: 44px;
+                max-height: 120px;
+                font-family: inherit;
+            }
+            .chat-input:focus {
+                outline: none;
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            }
+            .chat-input:disabled {
+                background: #f3f4f6;
+                cursor: not-allowed;
+            }
+            .chat-send-button {
+                width: 44px;
+                height: 44px;
+                border-radius: 8px;
+                border: none;
+                background: #2563eb;
+                color: white;
+                font-size: 1.25rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            .chat-send-button:hover:not(:disabled) {
+                background: #1d4ed8;
+            }
+            .chat-send-button:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+            }
+            .validation-error {
+                color: #ef4444;
+                font-size: 0.75rem;
+                margin-top: 0.5rem;
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+            }
+            .chat-empty-state {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                color: #9ca3af;
+                text-align: center;
+                padding: 2rem;
+            }
+            .chat-empty-state-icon {
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
         </style>
     </head>
     <body>
@@ -1247,6 +1448,10 @@ def serve_layout():
                 dcc.Store(id="processing-metadata", data={}),
                 dcc.Store(id="delete-confirmation-experiment", data=None),
                 dcc.Store(id="delete-confirmation-visible", data=False),
+                dcc.Store(id="chat-visible", data=False),
+                dcc.Store(id="chat-messages", data=[]),
+                dcc.Store(id="chat-validation-error", data=None),
+                dcc.Store(id="chat-loading", data=False),
                 dcc.Interval(id="cleanup-interval", interval=30000, n_intervals=0),  # Check every 30 seconds
                 html.Div(
                     [
@@ -1349,6 +1554,85 @@ def serve_layout():
                     className="app-shell",
                 ),
                 html.Div(id="delete-confirmation-modal", style={"display": "none"}),
+                # Chat toggle button
+                html.Button(
+                    "💬",
+                    id="chat-toggle-button",
+                    className="chat-toggle-button",
+                    style={"display": "none"},
+                    n_clicks=0,
+                ),
+                # Chat panel
+                html.Div(
+                    id="chat-panel",
+                    className="chat-panel",
+                    children=[
+                        # Header
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.Span("💬", style={"fontSize": "1.25rem"}),
+                                        html.Span("Experiment Chat"),
+                                    ],
+                                    className="chat-header-title",
+                                ),
+                                html.Button(
+                                    "✕",
+                                    id="chat-close-button",
+                                    className="chat-close-button",
+                                    n_clicks=0,
+                                ),
+                            ],
+                            className="chat-header",
+                        ),
+                        # Messages area
+                        html.Div(
+                            id="chat-messages-container",
+                            className="chat-messages-container",
+                            children=[
+                                html.Div(
+                                    [
+                                        html.Div("💬", className="chat-empty-state-icon"),
+                                        html.Div(
+                                            "Ask me anything about this experiment!",
+                                            style={"fontSize": "1.125rem", "fontWeight": "600", "marginBottom": "0.5rem"}
+                                        ),
+                                        html.Div(
+                                            "I can help explain the results, methodology, and statistical concepts.",
+                                            style={"fontSize": "0.875rem"}
+                                        ),
+                                    ],
+                                    className="chat-empty-state",
+                                ),
+                            ],
+                        ),
+                        # Input area
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        dcc.Textarea(
+                                            id="chat-input",
+                                            className="chat-input",
+                                            placeholder="Ask a question about this experiment...",
+                                            value="",
+                                        ),
+                                        html.Button(
+                                            "➤",
+                                            id="chat-send-button",
+                                            className="chat-send-button",
+                                            n_clicks=0,
+                                        ),
+                                    ],
+                                    className="chat-input-wrapper",
+                                ),
+                                html.Div(id="chat-validation-error-display", style={"display": "none"}),
+                            ],
+                            className="chat-input-container",
+                        ),
+                    ],
+                ),
             ],
         )
     )
@@ -2170,6 +2454,235 @@ def handle_delete_confirmation(confirm_clicks, cancel_clicks, experiment_name, e
     
     logger.debug(f"No valid trigger ({triggered}), preventing update")
     raise PreventUpdate
+
+
+@app.callback(
+    Output("chat-panel", "className"),
+    Output("chat-visible", "data"),
+    Input("chat-toggle-button", "n_clicks"),
+    Input("chat-close-button", "n_clicks"),
+    State("chat-visible", "data"),
+)
+def toggle_chat_panel(toggle_clicks, close_clicks, is_visible):
+    """Toggle chat panel visibility."""
+    triggered = callback_context.triggered_id
+    
+    if not triggered:
+        return "chat-panel", False
+    
+    if triggered == "chat-toggle-button":
+        # Open the panel
+        return "chat-panel open", True
+    elif triggered == "chat-close-button":
+        # Close the panel
+        return "chat-panel", False
+    
+    return "chat-panel", False
+
+
+@app.callback(
+    Output("chat-toggle-button", "style"),
+    Input("selected-experiment", "data"),
+    State("experiments-store", "data"),
+)
+def show_chat_button(selection, experiments):
+    """Show chat button only for completed experiments."""
+    if not selection or selection == "New Experiment":
+        return {"display": "none"}
+    
+    experiments = experiments or []
+    
+    # Find the selected experiment
+    for exp in experiments:
+        if exp.get("name") == selection:
+            # Show button only if experiment is complete
+            if exp.get("status") == "complete":
+                return {"display": "flex"}
+            break
+    
+    return {"display": "none"}
+
+
+@app.callback(
+    Output("chat-messages", "data", allow_duplicate=True),
+    Output("chat-validation-error", "data", allow_duplicate=True),
+    Input("selected-experiment", "data"),
+    prevent_initial_call=True,
+)
+def reset_chat_on_experiment_change(selection):
+    """Reset chat when switching experiments."""
+    logger.info(f"Resetting chat for experiment: {selection}")
+    return [], None
+
+
+@app.callback(
+    Output("chat-messages", "data", allow_duplicate=True),
+    Output("chat-input", "value"),
+    Output("chat-loading", "data"),
+    Output("chat-validation-error", "data", allow_duplicate=True),
+    Input("chat-send-button", "n_clicks"),
+    State("chat-input", "value"),
+    State("chat-messages", "data"),
+    State("selected-experiment", "data"),
+    State("experiments-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_chat_message(n_clicks, user_input, messages, selected_exp, experiments):
+    """Handle chat message submission with validation and LLM response."""
+    if not n_clicks or not user_input or not user_input.strip():
+        raise PreventUpdate
+    
+    logger.info(f"Processing chat message for experiment: {selected_exp}")
+    
+    messages = messages or []
+    experiments = experiments or []
+    
+    # Find the current experiment
+    current_experiment = None
+    for exp in experiments:
+        if exp.get("name") == selected_exp:
+            current_experiment = exp
+            break
+    
+    if not current_experiment:
+        logger.error(f"Experiment not found: {selected_exp}")
+        return messages, user_input, False, "Experiment not found."
+    
+    # Get OpenAI client
+    client = current_app.config.get("OPENAI_CLIENT")
+    if not client:
+        logger.error("OpenAI client not configured")
+        return messages, user_input, False, "Chat service is not available."
+    
+    # Validate the question
+    from services.chat_validator import ChatValidator
+    validator = ChatValidator(client)
+    
+    try:
+        should_continue, reason = validator.validate_question(user_input)
+        
+        if not should_continue:
+            logger.info(f"Question rejected: {reason}")
+            # Keep the input, show error
+            return messages, user_input, False, reason
+        
+        logger.info("Question validated successfully")
+        
+        # Generate response with experiment context
+        from services.experiment_chat import ExperimentChatService
+        chat_service = ExperimentChatService(client)
+        
+        assistant_response = chat_service.chat_with_context(
+            current_experiment,
+            messages,
+            user_input
+        )
+        
+        # Add both messages to history
+        updated_messages = messages + [
+            {"role": "user", "content": user_input},
+            {"role": "assistant", "content": assistant_response}
+        ]
+        
+        logger.info(f"Chat response generated, total messages: {len(updated_messages)}")
+        
+        # Clear input, clear error
+        return updated_messages, "", False, None
+        
+    except Exception as e:
+        logger.error(f"Error handling chat message: {e}")
+        logger.error(traceback.format_exc())
+        return messages, user_input, False, f"An error occurred: {str(e)}"
+
+
+@app.callback(
+    Output("chat-messages-container", "children"),
+    Input("chat-messages", "data"),
+)
+def render_chat_messages(messages):
+    """Render chat messages."""
+    if not messages:
+        # Show empty state
+        return [
+            html.Div(
+                [
+                    html.Div("💬", className="chat-empty-state-icon"),
+                    html.Div(
+                        "Ask me anything about this experiment!",
+                        style={"fontSize": "1.125rem", "fontWeight": "600", "marginBottom": "0.5rem"}
+                    ),
+                    html.Div(
+                        "I can help explain the results, methodology, and statistical concepts.",
+                        style={"fontSize": "0.875rem"}
+                    ),
+                ],
+                className="chat-empty-state",
+            )
+        ]
+    
+    message_components = []
+    
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        is_user = role == "user"
+        
+        # Create avatar
+        avatar = html.Div(
+            "👤" if is_user else "🤖",
+            className=f"chat-avatar {'user' if is_user else 'assistant'}",
+        )
+        
+        # Create message bubble - use Markdown for assistant, plain text for user
+        if is_user:
+            bubble = html.Div(
+                content,
+                className="chat-bubble user",
+            )
+        else:
+            bubble = dcc.Markdown(
+                content,
+                className="chat-bubble assistant",
+            )
+        
+        # Create message container
+        message_div = html.Div(
+            [avatar, bubble],
+            className=f"chat-message {'user' if is_user else 'assistant'}",
+        )
+        
+        message_components.append(message_div)
+    
+    return message_components
+
+
+@app.callback(
+    Output("chat-input", "disabled"),
+    Output("chat-send-button", "disabled"),
+    Input("chat-loading", "data"),
+)
+def update_loading_state(is_loading):
+    """Update loading state for input and button."""
+    return is_loading, is_loading
+
+
+@app.callback(
+    Output("chat-validation-error-display", "children"),
+    Output("chat-validation-error-display", "style"),
+    Input("chat-validation-error", "data"),
+)
+def display_validation_error(error):
+    """Display validation error message."""
+    if not error:
+        return None, {"display": "none"}
+    
+    return html.Div(
+        [
+            html.Span("⚠", style={"fontSize": "1rem"}),
+            html.Span(error),
+        ],
+        className="validation-error",
+    ), {"display": "flex"}
 
 
 if __name__ == "__main__":
