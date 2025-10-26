@@ -29,7 +29,7 @@ from flask import session, has_request_context, current_app
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
-from storage import load_experiments, save_experiments
+from storage import load_experiments, save_experiments, load_planning_sessions, save_planning_sessions
 from services.llm_extraction import LLMExtractor, ExtractionError, normalise_control_codes
 from services.experiment_runner import run_experiment, build_series_chart, build_distribution_plot, build_sensitivity_plot
 from services.model_selector import ModelSelector, ModelSelectionError
@@ -73,6 +73,10 @@ def build_upload_message(filename: Optional[str]) -> Optional[html.Div]:
 
 def _generate_experiment_name(count: int) -> str:
     return f"Experiment {count}"
+
+
+def _generate_planning_session_name(count: int) -> str:
+    return f"Planning Session {count}"
 
 
 class ExperimentFailure(Exception):
@@ -773,6 +777,33 @@ app.index_string = """<!DOCTYPE html>
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                gap: 2rem;
+            }
+            .mode-toggle {
+                display: flex;
+                gap: 0.5rem;
+                background: #f1f5f9;
+                padding: 0.25rem;
+                border-radius: 10px;
+            }
+            .mode-button {
+                padding: 0.5rem 1.25rem;
+                border: none;
+                background: transparent;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 0.9rem;
+                color: #64748b;
+                transition: all 0.2s ease;
+            }
+            .mode-button:hover {
+                color: #1f2937;
+            }
+            .mode-button.active {
+                background: white;
+                color: #1f2937;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             .top-title {
                 font-size: 1.5rem;
@@ -1403,6 +1434,40 @@ app.index_string = """<!DOCTYPE html>
                 font-size: 3rem;
                 margin-bottom: 1rem;
             }
+            .planning-messages-area {
+                max-width: 720px;
+                margin: 0 auto 2rem auto;
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+                min-height: 200px;
+            }
+            .planning-message {
+                display: flex;
+                gap: 0.75rem;
+                align-items: flex-start;
+            }
+            .planning-message.user {
+                flex-direction: row-reverse;
+            }
+            .planning-bubble {
+                max-width: 70%;
+                padding: 0.75rem 1rem;
+                border-radius: 12px;
+                word-wrap: break-word;
+                white-space: pre-wrap;
+                line-height: 1.5;
+            }
+            .planning-bubble.user {
+                background: #dbeafe;
+                color: #1e3a8a;
+                border: 1px solid #bfdbfe;
+            }
+            .planning-bubble.assistant {
+                background:rgb(243, 246, 250);
+                color: #1f2937;
+                border: 1px solid rgb(210, 213, 220);
+            }
         </style>
     </head>
     <body>
@@ -1434,8 +1499,27 @@ def _initial_experiments_state() -> List[Dict[str, Any]]:
     return experiments
 
 
+def _initial_planning_sessions_state() -> List[Dict[str, Any]]:
+    """Load initial planning sessions state from storage for the current user."""
+    if not has_request_context():
+        logger.debug("No request context available, returning empty planning sessions list")
+        return []
+
+    user_key = session.get("user", "default")
+    logger.info(f"Loading initial planning sessions state for user: {user_key}")
+    
+    # Always load from storage (storage is the source of truth)
+    # DO NOT store in session - planning sessions data is too large for cookie storage
+    sessions = load_planning_sessions(user_key)
+    logger.info(f"Loaded {len(sessions)} planning sessions from storage for user: {user_key}")
+    
+    logger.info(f"Returning {len(sessions)} planning sessions for initial state")
+    return sessions
+
+
 def serve_layout():
     initial_experiments = _initial_experiments_state()
+    initial_planning_sessions = _initial_planning_sessions_state()
     return dmc.MantineProvider(
         html.Div(
             [
@@ -1452,6 +1536,12 @@ def serve_layout():
                 dcc.Store(id="chat-messages", data=[]),
                 dcc.Store(id="chat-validation-error", data=None),
                 dcc.Store(id="chat-loading", data=False),
+                # Planning mode stores
+                dcc.Store(id="app-mode", data="experiments"),
+                dcc.Store(id="planning-sessions-store", data=initial_planning_sessions),
+                dcc.Store(id="selected-planning-session", data="New Planning"),
+                dcc.Store(id="planning-messages", data=[]),
+                dcc.Store(id="planning-validation-error", data=None),
                 dcc.Interval(id="cleanup-interval", interval=30000, n_intervals=0),  # Check every 30 seconds
                 html.Div(
                     [
@@ -1482,7 +1572,13 @@ def serve_layout():
                             [
                                 html.Div(
                                     [
-                                        html.Div("New Experiment", id="top-title", className="top-title"),
+                                        html.Div(
+                                            [
+                                                html.Button("Experiments", id="mode-experiments", className="mode-button active"),
+                                                html.Button("Planning", id="mode-planning", className="mode-button"),
+                                            ],
+                                            className="mode-toggle",
+                                        ),
                                     ],
                                     className="top-bar",
                                 ),
@@ -1494,12 +1590,22 @@ def serve_layout():
                                         html.H2("What are we testing today?", className="hero-title"),
                                         html.Div(
                                             [
+                                                html.Div("🔬", style={"fontSize": "3rem", "marginBottom": "1rem"}),
+                                                html.Div(
+                                                    "Describe your experiment, upload your data, and let AI guide your causal inference analysis.",
+                                                    style={"fontSize": "0.875rem", "color": "#94a3b8", "marginBottom": "2rem", "textAlign": "center", "maxWidth": "600px"}
+                                                ),
+                                            ],
+                                            style={"display": "flex", "flexDirection": "column", "alignItems": "center", "justifyContent": "center"}
+                                        ),
+                                        html.Div(
+                                            [
                                                 html.Div(
                                                     [
                                                         html.Button("＋", id="toggle-attachments", className="composer-icon"),
                                                         dcc.Textarea(
                                                             id="form-message",
-                                                            placeholder="Describe the experiment you want to run…",
+                                                            placeholder="Tell me about the intervention you ran…",
                                                             className="composer-input",
                                                             value="",
                                                         ),
@@ -1543,6 +1649,36 @@ def serve_layout():
                                     className="card",
                                 ),
                                 html.Div(id="experiment-detail-view", className="card", style={"display": "none"}),
+                                # Planning view
+                                html.Div(
+                                    [
+                                        html.H2("What would you like to plan?", className="hero-title"),
+                                        html.Div(id="planning-messages-container", className="planning-messages-area"),
+                                        html.Div(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dcc.Textarea(
+                                                            id="planning-input",
+                                                            placeholder="Your question...",
+                                                            className="composer-input",
+                                                            value="",
+                                                        ),
+                                                        html.Button("➤", id="planning-send", className="composer-icon send"),
+                                                    ],
+                                                    id="planning-composer",
+                                                    className="message-composer",
+                                                ),
+                                                html.Div(id="planning-validation-error-display", style={"display": "none"}),
+                                            ],
+                                            className="composer-wrapper",
+                                            id="planning-composer-wrapper",
+                                        ),
+                                    ],
+                                    id="planning-view",
+                                    className="card",
+                                    style={"display": "none"},
+                                ),
                                     ],
                                     className="content-area",
                                 ),
@@ -1648,84 +1784,74 @@ app.layout = serve_layout
     Input("experiments-store", "data"),
     Input("selected-experiment", "data"),
     Input("sidebar-toggle", "n_clicks"),
+    Input("planning-sessions-store", "data"),
+    Input("selected-planning-session", "data"),
+    Input("app-mode", "data"),
     State("sidebar-expanded", "data"),
 )
 def update_sidebar(
     experiments: Optional[List[Dict[str, Any]]],
     selected: Optional[str],
     toggle_clicks: Optional[int],
+    planning_sessions: Optional[List[Dict[str, Any]]],
+    selected_planning: Optional[str],
+    mode: Optional[str],
     expanded_state: Optional[bool],
 ):
+    mode = mode or "experiments"
     experiments = experiments or []
-    selected_value = selected or "New Experiment"
-
-    cards = [
-        html.Div(
-            html.Button(
-                [
-                    html.Div("New Experiment", className="experiment-card-title"),
-                    html.Div("Start a fresh request", className="experiment-card-description"),
-                ],
-                className=f"experiment-card{' active' if selected_value == 'New Experiment' else ''}",
-                id={"type": "experiment-card", "value": "New Experiment"},
-                n_clicks=0,
-            ),
-            className="experiment-card-container",
-        )
-    ]
-
-    for exp in experiments:
-        subtitle = exp.get("message", "").strip() or "Untitled experiment request"
-        is_loading = exp.get("status") == "loading"
-        
-        if is_loading:
-            # Render loading experiment with spinner
-            cards.append(
-                html.Div(
-                    html.Button(
-                        [
-                            html.Div(
-                                [
-                                    html.Span(className="loading-spinner"),
-                                    html.Span(exp["name"]),
-                                ],
-                                className="experiment-card-title",
-                                style={"display": "flex", "alignItems": "center"}
-                            ),
-                            html.Div("Processing...", className="experiment-card-description"),
-                        ],
-                        className=f"experiment-card loading{' active' if selected_value == exp['name'] else ''}",
-                        id={"type": "experiment-card", "value": exp["name"]},
-                        n_clicks=0,
-                    ),
-                    className="experiment-card-container",
-                )
+    planning_sessions = planning_sessions or []
+    
+    # Determine which mode we're in and which selection to use
+    if mode == "planning":
+        selected_value = selected_planning or "New Planning"
+        cards = [
+            html.Div(
+                html.Button(
+                    [
+                        html.Div("New Planning", className="experiment-card-title"),
+                        html.Div("Start a new planning session", className="experiment-card-description"),
+                    ],
+                    className=f"experiment-card{' active' if selected_value == 'New Planning' else ''}",
+                    id={"type": "planning-card", "value": "New Planning"},
+                    n_clicks=0,
+                ),
+                className="experiment-card-container",
             )
-        else:
-            # Render completed experiment normally - menu button is sibling, not nested
+        ]
+        
+        # Add planning session cards
+        for session in planning_sessions:
+            # Get first user message as preview
+            messages = session.get("messages", [])
+            preview = "No messages yet"
+            for msg in messages:
+                if msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    preview = content[:60] + ("…" if len(content) > 60 else "")
+                    break
+            
+            timestamp = session.get("updated_at") or session.get("created_at", "")
+            
             cards.append(
                 html.Div(
                     [
                         html.Button(
                             [
-                                html.Div(exp["name"], className="experiment-card-title"),
-                                html.Div(subtitle[:60] + ("…" if len(subtitle) > 60 else ""), className="experiment-card-description"),
+                                html.Div(session["name"], className="experiment-card-title"),
+                                html.Div(preview, className="experiment-card-description"),
                                 html.Div(
-                                    [
-                                        html.Div(_format_date(exp.get("start_date")), className="meta-value"),
-                                        html.Span(className="dot"),
-                                        html.Div(_format_date(exp.get("end_date")), className="meta-value"),
-                                    ],
+                                    _format_date(timestamp) if timestamp else "",
                                     className="experiment-card-meta",
                                 ),
                             ],
-                            className=f"experiment-card{' active' if selected_value == exp['name'] else ''}",
-                            id={"type": "experiment-card", "value": exp["name"]},
+                            className=f"experiment-card{' active' if selected_value == session['name'] else ''}",
+                            id={"type": "planning-card", "value": session["name"]},
                             n_clicks=0,
                         ),
                         html.Button(
                             "⋮",
-                            id={"type": "experiment-menu-button", "experiment": exp["name"]},
+                            id={"type": "planning-menu-button", "session": session["name"]},
                             className="experiment-card-menu-button",
                             n_clicks=0,
                         ),
@@ -1733,6 +1859,84 @@ def update_sidebar(
                     className="experiment-card-container",
                 )
             )
+    else:
+        # Experiments mode (original behavior)
+        selected_value = selected or "New Experiment"
+        cards = [
+            html.Div(
+                html.Button(
+                    [
+                        html.Div("New Experiment", className="experiment-card-title"),
+                        html.Div("Start a fresh request", className="experiment-card-description"),
+                    ],
+                    className=f"experiment-card{' active' if selected_value == 'New Experiment' else ''}",
+                    id={"type": "experiment-card", "value": "New Experiment"},
+                    n_clicks=0,
+                ),
+                className="experiment-card-container",
+            )
+        ]
+
+        # Add experiment cards (only in experiments mode)
+        for exp in experiments:
+            subtitle = exp.get("message", "").strip() or "Untitled experiment request"
+            is_loading = exp.get("status") == "loading"
+            
+            if is_loading:
+                # Render loading experiment with spinner
+                cards.append(
+                    html.Div(
+                        html.Button(
+                            [
+                                html.Div(
+                                    [
+                                        html.Span(className="loading-spinner"),
+                                        html.Span(exp["name"]),
+                                    ],
+                                    className="experiment-card-title",
+                                    style={"display": "flex", "alignItems": "center"}
+                                ),
+                                html.Div("Processing...", className="experiment-card-description"),
+                            ],
+                            className=f"experiment-card loading{' active' if selected_value == exp['name'] else ''}",
+                            id={"type": "experiment-card", "value": exp["name"]},
+                            n_clicks=0,
+                        ),
+                        className="experiment-card-container",
+                    )
+                )
+            else:
+                # Render completed experiment normally - menu button is sibling, not nested
+                cards.append(
+                    html.Div(
+                        [
+                            html.Button(
+                                [
+                                    html.Div(exp["name"], className="experiment-card-title"),
+                                    html.Div(subtitle[:60] + ("…" if len(subtitle) > 60 else ""), className="experiment-card-description"),
+                                    html.Div(
+                                        [
+                                            html.Div(_format_date(exp.get("start_date")), className="meta-value"),
+                                            html.Span(className="dot"),
+                                            html.Div(_format_date(exp.get("end_date")), className="meta-value"),
+                                        ],
+                                        className="experiment-card-meta",
+                                    ),
+                                ],
+                                className=f"experiment-card{' active' if selected_value == exp['name'] else ''}",
+                                id={"type": "experiment-card", "value": exp["name"]},
+                                n_clicks=0,
+                            ),
+                            html.Button(
+                                "⋮",
+                                id={"type": "experiment-menu-button", "experiment": exp["name"]},
+                                className="experiment-card-menu-button",
+                                n_clicks=0,
+                            ),
+                        ],
+                        className="experiment-card-container",
+                    )
+                )
 
     expanded = True if expanded_state is None else bool(expanded_state)
     ctx = callback_context.triggered_id
@@ -1784,15 +1988,40 @@ def select_experiment(cards_clicks, card_ids, current_selection, experiments):
 
 
 @app.callback(
-    Output("top-title", "children"),
     Output("new-experiment-view", "style"),
     Output("experiment-detail-view", "style"),
     Output("experiment-detail-view", "children"),
+    Output("planning-view", "style"),
     Input("selected-experiment", "data"),
     Input("experiments-store", "data"),
+    Input("selected-planning-session", "data"),
+    Input("planning-sessions-store", "data"),
+    Input("app-mode", "data"),
 )
-def update_main_view(selection: Optional[str], experiments: Optional[List[Dict[str, Any]]]):
+def update_main_view(
+    selection: Optional[str],
+    experiments: Optional[List[Dict[str, Any]]],
+    planning_selection: Optional[str],
+    planning_sessions: Optional[List[Dict[str, Any]]],
+    mode: Optional[str],
+):
+    mode = mode or "experiments"
     experiments = experiments or []
+    planning_sessions = planning_sessions or []
+    
+    # Planning mode
+    if mode == "planning":
+        selected_value = planning_selection or "New Planning"
+        
+        # Always show planning view in planning mode
+        return (
+            {"display": "none"},  # Hide new-experiment-view
+            {"display": "none"},  # Hide experiment-detail-view
+            [],                   # Empty experiment-detail children
+            {"display": "block"}, # Show planning-view
+        )
+    
+    # Experiments mode (original behavior)
     selected_value = selection or "New Experiment"
 
     if selected_value != "New Experiment":
@@ -1815,24 +2044,24 @@ def update_main_view(selection: Optional[str], experiments: Optional[List[Dict[s
                     )
                 ]
                 return (
-                    match["name"],
-                    {"display": "none"},
-                    {"display": "block"},
+                    {"display": "none"},  # Hide new-experiment-view
+                    {"display": "block"}, # Show experiment-detail-view
                     loading_view,
+                    {"display": "none"},  # Hide planning-view
                 )
             
             # Show completed experiment details
             return (
-                match["name"],
-                {"display": "none"},
-                {"display": "block"},
+                {"display": "none"},  # Hide new-experiment-view
+                {"display": "block"}, # Show experiment-detail-view
                 _render_experiment_detail(match),
+                {"display": "none"},  # Hide planning-view
             )
     return (
-        "New Experiment",
-        {"display": "block"},
-        {"display": "none"},
-        [],
+        {"display": "block"},  # Show new-experiment-view
+        {"display": "none"},   # Hide experiment-detail-view
+        [],                    # Empty experiment-detail children
+        {"display": "none"},   # Hide planning-view
     )
 
 
@@ -2294,8 +2523,8 @@ def debug_delete_button_click(n_clicks):
 
 
 @app.callback(
-    Output("delete-confirmation-experiment", "data"),
-    Output("delete-confirmation-visible", "data"),
+    Output("delete-confirmation-experiment", "data", allow_duplicate=True),
+    Output("delete-confirmation-visible", "data", allow_duplicate=True),
     Input({"type": "experiment-menu-button", "experiment": ALL}, "n_clicks"),
     State({"type": "experiment-menu-button", "experiment": ALL}, "id"),
     prevent_initial_call=True,
@@ -2387,6 +2616,8 @@ def render_delete_confirmation(visible, experiment_name):
 @app.callback(
     Output("experiments-store", "data", allow_duplicate=True),
     Output("selected-experiment", "data", allow_duplicate=True),
+    Output("planning-sessions-store", "data", allow_duplicate=True),
+    Output("selected-planning-session", "data", allow_duplicate=True),
     Output("delete-confirmation-experiment", "data", allow_duplicate=True),
     Output("delete-confirmation-visible", "data", allow_duplicate=True),
     Input("delete-confirmation-confirm", "n_clicks"),
@@ -2394,63 +2625,78 @@ def render_delete_confirmation(visible, experiment_name):
     State("delete-confirmation-experiment", "data"),
     State("experiments-store", "data"),
     State("selected-experiment", "data"),
+    State("planning-sessions-store", "data"),
+    State("selected-planning-session", "data"),
+    State("app-mode", "data"),
     prevent_initial_call=True,
 )
-def handle_delete_confirmation(confirm_clicks, cancel_clicks, experiment_name, experiments, selected):
-    """Handle delete confirmation or cancellation."""
+def handle_delete_confirmation_unified(confirm_clicks, cancel_clicks, item_name, experiments, selected_exp, planning_sessions, selected_planning, mode):
+    """Handle delete confirmation or cancellation for both experiments and planning sessions."""
     from dash import no_update
     
-    # Prevent callback from firing when modal first renders (both buttons at n_clicks=0)
+    # Prevent callback from firing when modal first renders
     if not confirm_clicks and not cancel_clicks:
         logger.debug("Modal rendered but no button clicked yet, preventing update")
         raise PreventUpdate
     
     triggered = callback_context.triggered_id
     
-    # EXTENSIVE DEBUG LOGGING
-    logger.info(f"=== handle_delete_confirmation CALLED ===")
+    logger.info(f"=== handle_delete_confirmation_unified CALLED ===")
     logger.info(f"Triggered ID: {triggered}")
-    logger.info(f"Triggered ID type: {type(triggered)}")
-    logger.info(f"Triggered ID == 'delete-confirmation-confirm': {triggered == 'delete-confirmation-confirm'}")
-    logger.info(f"Triggered ID == 'delete-confirmation-cancel': {triggered == 'delete-confirmation-cancel'}")
-    logger.info(f"Confirm clicks: {confirm_clicks}")
-    logger.info(f"Cancel clicks: {cancel_clicks}")
-    logger.info(f"Experiment to delete: {experiment_name}")
-    logger.info(f"Current selection: {selected}")
-    logger.info(f"Experiments count: {len(experiments) if experiments else 0}")
+    logger.info(f"Mode: {mode}")
+    logger.info(f"Item to delete: {item_name}")
     
     if triggered == "delete-confirmation-cancel":
         logger.info("Delete cancelled by user")
-        # Just close the modal
-        return no_update, no_update, None, False
+        # Close the modal, don't update any data
+        return no_update, no_update, no_update, no_update, None, False
     
     if triggered == "delete-confirmation-confirm":
-        if not experiment_name:
-            logger.error("Confirm clicked but no experiment name provided!")
+        if not item_name:
+            logger.error("Confirm clicked but no item name provided!")
             raise PreventUpdate
         
-        logger.info(f"Deleting experiment: {experiment_name}")
+        if mode == "planning":
+            # Handle planning session deletion
+            logger.info(f"Deleting planning session: {item_name}")
+            
+            sessions = planning_sessions or []
+            updated_sessions = [s for s in sessions if s.get("name") != item_name]
+            
+            logger.info(f"Sessions before delete: {len(sessions)}, after delete: {len(updated_sessions)}")
+            
+            # Save to storage
+            if has_request_context():
+                user_key = session.get("user", "default")
+                save_planning_sessions(user_key, updated_sessions)
+                logger.info(f"Deleted planning session '{item_name}' for user '{user_key}'")
+            
+            # If deleted session was selected, switch to "New Planning"
+            new_planning_selection = "New Planning" if selected_planning == item_name else selected_planning
+            
+            # Return: experiments unchanged, planning updated, modal closed
+            return no_update, no_update, updated_sessions, new_planning_selection, None, False
         
-        # Delete the experiment
-        experiments = experiments or []
-        updated_experiments = [exp for exp in experiments if exp.get("name") != experiment_name]
-        
-        logger.info(f"Experiments before delete: {len(experiments)}, after delete: {len(updated_experiments)}")
-        
-        # Save to storage
-        if has_request_context():
-            user_key = session.get("user", "default")
-            save_experiments(user_key, updated_experiments)
-            logger.info(f"Deleted experiment '{experiment_name}' for user '{user_key}' - saved to storage")
-        else:
-            logger.warning("No request context - deletion not saved to storage")
-        
-        # If deleted experiment was selected, switch to "New Experiment"
-        new_selection = "New Experiment" if selected == experiment_name else selected
-        logger.info(f"New selection: {new_selection}")
-        
-        # Close modal and clear state
-        return updated_experiments, new_selection, None, False
+        else:  # mode == "experiments" or default
+            # Handle experiment deletion
+            logger.info(f"Deleting experiment: {item_name}")
+            
+            experiments = experiments or []
+            updated_experiments = [exp for exp in experiments if exp.get("name") != item_name]
+            
+            logger.info(f"Experiments before delete: {len(experiments)}, after delete: {len(updated_experiments)}")
+            
+            # Save to storage
+            if has_request_context():
+                user_key = session.get("user", "default")
+                save_experiments(user_key, updated_experiments)
+                logger.info(f"Deleted experiment '{item_name}' for user '{user_key}'")
+            
+            # If deleted experiment was selected, switch to "New Experiment"
+            new_exp_selection = "New Experiment" if selected_exp == item_name else selected_exp
+            
+            # Return: experiments updated, planning unchanged, modal closed
+            return updated_experiments, new_exp_selection, no_update, no_update, None, False
     
     logger.debug(f"No valid trigger ({triggered}), preventing update")
     raise PreventUpdate
@@ -2683,6 +2929,283 @@ def display_validation_error(error):
         ],
         className="validation-error",
     ), {"display": "flex"}
+
+
+# ============================================================================
+# PLANNING MODE CALLBACKS
+# ============================================================================
+
+@app.callback(
+    Output("app-mode", "data"),
+    Output("mode-experiments", "className"),
+    Output("mode-planning", "className"),
+    Input("mode-experiments", "n_clicks"),
+    Input("mode-planning", "n_clicks"),
+    State("app-mode", "data"),
+)
+def switch_mode(exp_clicks, plan_clicks, current_mode):
+    """Switch between Experiments and Planning modes."""
+    triggered = callback_context.triggered_id
+    
+    if not triggered:
+        # Initial load - set classes based on current mode
+        if current_mode == "planning":
+            return "planning", "mode-button", "mode-button active"
+        return "experiments", "mode-button active", "mode-button"
+    
+    if triggered == "mode-experiments":
+        logger.info("Switching to Experiments mode")
+        return "experiments", "mode-button active", "mode-button"
+    elif triggered == "mode-planning":
+        logger.info("Switching to Planning mode")
+        return "planning", "mode-button", "mode-button active"
+    
+    # Default to experiments
+    return "experiments", "mode-button active", "mode-button"
+
+
+@app.callback(
+    Output("selected-planning-session", "data"),
+    Input({"type": "planning-card", "value": ALL}, "n_clicks"),
+    State({"type": "planning-card", "value": ALL}, "id"),
+)
+def select_planning_session(cards_clicks, card_ids):
+    """Select a planning session from the sidebar."""
+    triggered = callback_context.triggered_id
+    
+    if not triggered or not isinstance(triggered, dict):
+        raise PreventUpdate
+    
+    session_name = triggered.get("value", "New Planning")
+    logger.info(f"Selected planning session: {session_name}")
+    return session_name
+
+
+@app.callback(
+    Output("planning-messages", "data", allow_duplicate=True),
+    Input("selected-planning-session", "data"),
+    State("planning-sessions-store", "data"),
+    prevent_initial_call=True,
+)
+def load_planning_messages(session_name, sessions):
+    """Load messages when a planning session is selected."""
+    if not session_name or session_name == "New Planning":
+        return []
+    
+    sessions = sessions or []
+    for session in sessions:
+        if session.get("name") == session_name:
+            return session.get("messages", [])
+    
+    return []
+
+
+@app.callback(
+    Output("planning-messages-container", "children"),
+    Input("planning-messages", "data"),
+)
+def render_planning_messages(messages):
+    """Render planning messages."""
+    if not messages:
+        return html.Div(
+            [
+                html.Div("💭", style={"fontSize": "3rem", "marginBottom": "1rem"}),
+                # html.Div(
+                #     "Start planning your experiment!",
+                #     style={"fontSize": "1.125rem", "fontWeight": "600", "marginBottom": "0.5rem", "color": "#64748b"}
+                # ),
+                html.Div(
+                    "Ask about experimental design, methodology, or causal inference.",
+                    style={"fontSize": "0.875rem", "color": "#94a3b8"}
+                ),
+            ],
+            style={"display": "flex", "flexDirection": "column", "alignItems": "center", "justifyContent": "center", "minHeight": "200px"}
+        )
+    
+    message_components = []
+    
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        is_user = role == "user"
+        
+        # Create avatar
+        avatar = html.Div(
+            "👤" if is_user else "🤖",
+            className=f"chat-avatar {'user' if is_user else 'assistant'}",
+        )
+        
+        # Create message bubble - use Markdown for assistant, plain text for user
+        if is_user:
+            bubble = html.Div(
+                content,
+                className="planning-bubble user",
+            )
+        else:
+            bubble = dcc.Markdown(
+                content,
+                className="planning-bubble assistant",
+            )
+        
+        # Create message container with avatar
+        message_div = html.Div(
+            [avatar, bubble],
+            className=f"planning-message {'user' if is_user else 'assistant'}",
+        )
+        
+        message_components.append(message_div)
+    
+    return message_components
+
+
+@app.callback(
+    Output("planning-sessions-store", "data", allow_duplicate=True),
+    Output("selected-planning-session", "data", allow_duplicate=True),
+    Output("planning-messages", "data", allow_duplicate=True),
+    Output("planning-input", "value"),
+    Output("planning-validation-error", "data"),
+    Input("planning-send", "n_clicks"),
+    State("planning-input", "value"),
+    State("planning-messages", "data"),
+    State("selected-planning-session", "data"),
+    State("planning-sessions-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_planning_message(n_clicks, user_input, messages, selected_session, sessions):
+    """Handle planning message submission with validation and LLM response."""
+    if not n_clicks or not user_input or not user_input.strip():
+        raise PreventUpdate
+    
+    logger.info(f"Processing planning message for session: {selected_session}")
+    
+    messages = messages or []
+    sessions = sessions or []
+    
+    # Get OpenAI client
+    client = current_app.config.get("OPENAI_CLIENT")
+    if not client:
+        logger.error("OpenAI client not configured")
+        return sessions, selected_session, messages, user_input, "Chat service is not available."
+    
+    # Validate the question
+    from services.planning_validator import PlanningValidator
+    validator = PlanningValidator(client)
+    
+    try:
+        should_continue, reason = validator.validate_question(user_input)
+        
+        if not should_continue:
+            logger.info(f"Question rejected: {reason}")
+            # Keep the input, show error
+            return sessions, selected_session, messages, user_input, reason
+        
+        logger.info("Question validated successfully")
+        
+        # Generate response
+        from services.planning_chat import PlanningChatService
+        chat_service = PlanningChatService(client)
+        
+        assistant_response = chat_service.chat(messages, user_input)
+        
+        # Add both messages to history
+        updated_messages = messages + [
+            {"role": "user", "content": user_input},
+            {"role": "assistant", "content": assistant_response}
+        ]
+        
+        # Create or update session
+        if selected_session == "New Planning":
+            # Create new session
+            session_name = _generate_planning_session_name(len(sessions) + 1)
+            new_session = {
+                "name": session_name,
+                "messages": updated_messages,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+            }
+            updated_sessions = sessions + [new_session]
+            selected_session = session_name
+        else:
+            # Update existing session
+            updated_sessions = []
+            for sess in sessions:
+                if sess.get("name") == selected_session:
+                    sess["messages"] = updated_messages
+                    sess["updated_at"] = datetime.now().isoformat()
+                updated_sessions.append(sess)
+        
+        # Save to storage
+        if has_request_context():
+            user_key = session.get("user", "default")
+            save_planning_sessions(user_key, updated_sessions)
+            logger.info(f"Saved planning sessions for user '{user_key}'")
+        
+        logger.info(f"Planning chat response generated, total messages: {len(updated_messages)}")
+        
+        # Clear input, clear error
+        return updated_sessions, selected_session, updated_messages, "", None
+        
+    except Exception as e:
+        logger.error(f"Error handling planning message: {e}")
+        logger.error(traceback.format_exc())
+        return sessions, selected_session, messages, user_input, f"An error occurred: {str(e)}"
+
+
+@app.callback(
+    Output("planning-validation-error-display", "children"),
+    Output("planning-validation-error-display", "style"),
+    Input("planning-validation-error", "data"),
+)
+def display_planning_validation_error(error):
+    """Display planning validation error message."""
+    if not error:
+        return None, {"display": "none"}
+    
+    return html.Div(
+        [
+            html.Span("⚠", style={"fontSize": "1rem"}),
+            html.Span(error),
+        ],
+        className="validation-error",
+        style={"color": "#ef4444", "fontSize": "0.75rem", "marginTop": "0.5rem", "display": "flex", "alignItems": "center", "gap": "0.25rem"}
+    ), {"display": "flex"}
+
+
+@app.callback(
+    Output("delete-confirmation-experiment", "data", allow_duplicate=True),
+    Output("delete-confirmation-visible", "data", allow_duplicate=True),
+    Input({"type": "planning-menu-button", "session": ALL}, "n_clicks"),
+    State({"type": "planning-menu-button", "session": ALL}, "id"),
+    prevent_initial_call=True,
+)
+def show_delete_planning_confirmation(clicks, button_ids):
+    """Show delete confirmation when planning session menu button is clicked."""
+    triggered = callback_context.triggered_id
+    
+    logger.debug(f"show_delete_planning_confirmation triggered: {triggered}")
+    
+    # Validate trigger exists and is a dict
+    if not triggered or not isinstance(triggered, dict):
+        logger.debug("No valid trigger or not a dict, preventing update")
+        raise PreventUpdate
+    
+    # Validate it's the right button type
+    if triggered.get("type") != "planning-menu-button":
+        logger.debug(f"Wrong button type: {triggered.get('type')}, preventing update")
+        raise PreventUpdate
+    
+    # Check if any actual clicks occurred
+    if not any(c for c in clicks if c and c > 0):
+        logger.debug("No actual clicks detected (all 0 or None)")
+        raise PreventUpdate
+    
+    session_name = triggered.get("session")
+    if not session_name:
+        logger.debug("No session name in trigger")
+        raise PreventUpdate
+    
+    logger.info(f"Showing delete confirmation for planning session: {session_name}")
+    return session_name, True
 
 
 if __name__ == "__main__":
